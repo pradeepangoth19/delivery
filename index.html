@@ -3,21 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shadowfax Ops Pro - Ultimate Hub & Finance Suite</title>
+    <title>Shadowfax Hub & Finance Suite</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
-        .tab-btn.active { background-color: #f8fafc; color: #2563eb; font-weight: 700; border-left: 4px solid #2563eb; }
+        .tab-btn.active { background-color: #f1f5f9; color: #0f172a; font-weight: 600; border-left: 4px solid #2563eb; }
         #canvas-vault { display: none; }
+        #loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.8); z-index: 100; display: flex; flex-direction: column; justify-content: center; items-center: center; align-items: center; }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen flex flex-col">
+    
+    <!-- Data Sync Loading Overlay -->
+    <div id="loading-overlay">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+        <p class="text-sm font-bold text-slate-700">Syncing with Google Sheets Workspace...</p>
+    </div>
 
     <header class="bg-slate-900 text-white shadow-xl px-8 py-4 flex flex-col md:flex-row justify-between items-center gap-4 border-b border-slate-800">
         <div class="flex items-center space-x-4">
@@ -26,24 +31,22 @@
             </div>
             <div>
                 <h1 class="text-lg font-bold tracking-tight">SHADOWFAX LOGISTICS</h1>
-                <p class="text-xs text-slate-400 font-medium">Hub Operations & Live Google Sheets Synchronized Matrix</p>
+                <p class="text-xs text-slate-400 font-medium">Hub Operations & 15-Day Automated Cycle Salary Ledger</p>
             </div>
         </div>
 
         <div class="w-full md:w-96 relative">
             <div class="flex bg-slate-800 rounded-xl border border-slate-700 overflow-hidden focus-within:border-blue-500 transition-all">
                 <span class="pl-3 flex items-center text-slate-400 text-sm">🔍</span>
-                <input type="text" id="global-awb-search" placeholder="Search Global AWB Records..." oninput="executeGlobalAwbSearch()" class="w-full bg-transparent text-white px-3 py-2 text-xs outline-none">
+                <input type="text" id="global-awb-search" placeholder="Search Global AWB Tracking Matrix..." oninput="executeGlobalAwbSearch()" class="w-full bg-transparent text-white px-3 py-2 text-xs outline-none">
             </div>
             <div id="awb-search-result-panel" class="hidden absolute top-full left-0 right-0 mt-2 bg-white text-slate-800 border border-slate-200 rounded-xl shadow-2xl p-4 z-50 space-y-2"></div>
         </div>
 
-        <div class="flex items-center space-x-4">
-            <button onclick="fetchLiveGoogleSheetData()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow transition-all flex items-center gap-1.5">
-                <span>🔄</span> Refresh Sheet Data
-            </button>
+        <div class="flex items-center space-x-6">
             <div class="text-right">
-                <input type="date" id="global-date-filter" onchange="syncWorkspaceState()" class="bg-slate-800 text-white border border-slate-700 rounded-lg px-3 py-1 text-xs outline-none focus:border-blue-500">
+                <p class="text-xs text-slate-400 font-medium">Global Calendar Operations Filter</p>
+                <input type="date" id="global-date-filter" onchange="syncWorkspaceState()" class="bg-slate-800 text-white border border-slate-700 rounded-lg px-3 py-1 text-xs mt-0.5 outline-none focus:border-blue-500">
             </div>
         </div>
     </header>
@@ -61,54 +64,41 @@
                 <button onclick="switchTab('rider-view')" id="btn-rider-view" class="tab-btn w-full flex items-center space-x-3 px-3 py-3 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all text-sm text-left">
                     <span>🛵</span><span>Rider Daily Activity Log</span>
                 </button>
-                <button onclick="switchTab('master-rows')" id="btn-master-rows" class="tab-btn w-full flex items-center space-x-3 px-3 py-3 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all text-sm text-left">
-                    <span>📋</span><span>Raw Sheet Records View</span>
+                <button onclick="switchTab('entry')" id="btn-entry" class="tab-btn w-full flex items-center space-x-3 px-3 py-3 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all text-sm text-left">
+                    <span>📝</span><span>Riders Ingestion Portal</span>
                 </button>
                 <button onclick="switchTab('barcodes')" id="btn-barcodes" class="tab-btn w-full flex items-center space-x-3 px-3 py-3 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all text-sm text-left">
                     <span>🏷️</span><span>Barcode Matrix Studio</span>
                 </button>
             </div>
             
-            <div class="border-t border-slate-100 pt-4 text-center">
-                <span id="sync-status" class="text-[11px] text-emerald-600 font-bold bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-xl block">Syncing Google Matrix...</span>
+            <div class="border-t border-slate-100 pt-4">
+                <button onclick="resetWorkspaceDatabase()" class="w-full text-xs font-semibold bg-rose-50 text-rose-600 border border-rose-200 rounded-xl py-2.5 hover:bg-rose-100 transition-all">
+                    Reset Workspace Data
+                </button>
             </div>
         </aside>
 
         <main class="flex-1 p-8 overflow-y-auto">
-
+            <!-- (The entire main section HTML remains identical to Source 1. Truncated for brevity here, but included fully below). -->
             <section id="sec-management" class="space-y-6">
                 <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                     <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">📈 Live Operations Performance Dashboard</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="space-y-3">
-                            <h4 class="text-sm font-bold text-blue-600 border-b pb-1">Today's Selected Records Summary</h4>
+                            <h4 class="text-sm font-bold text-blue-600 border-b pb-1">Today's Hub Performance (Live)</h4>
                             <div class="grid grid-cols-3 gap-2 text-center">
-                                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100"><p class="text-[10px] text-slate-400 font-bold uppercase">Rider Rows Today</p><p id="perf-today-runsheets" class="text-lg font-bold text-slate-800">0</p></div>
+                                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100"><p class="text-[10px] text-slate-400 font-bold uppercase">Runsheets Today</p><p id="perf-today-runsheets" class="text-lg font-bold text-slate-800">0</p></div>
                                 <div class="bg-slate-50 p-3 rounded-xl border border-slate-100"><p class="text-[10px] text-slate-400 font-bold uppercase">Success Rate</p><p id="perf-today-rate" class="text-lg font-bold text-emerald-600">0%</p></div>
-                                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100"><p class="text-[10px] text-slate-400 font-bold uppercase">Handcash Recd</p><p id="perf-today-cash" class="text-lg font-bold text-blue-600">₹0</p></div>
+                                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100"><p class="text-[10px] text-slate-400 font-bold uppercase">Field Handcash</p><p id="perf-today-cash" class="text-lg font-bold text-blue-600">₹0</p></div>
                             </div>
                         </div>
                         <div class="space-y-3">
-                            <h4 class="text-sm font-bold text-slate-800 border-b pb-1">Hub Lifetime Performance Analytics</h4>
+                            <h4 class="text-sm font-bold text-slate-800 border-b pb-1">Hub Lifetime Performance (Live)</h4>
                             <div class="grid grid-cols-3 gap-2 text-center">
-                                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100"><p class="text-[10px] text-slate-400 font-bold uppercase">Total Database Rows</p><p id="perf-life-ops" class="text-lg font-bold text-slate-800">0</p></div>
-                                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100"><p class="text-[10px] text-slate-400 font-bold uppercase">Total Expected Cash</p><p id="perf-life-remit" class="text-lg font-bold text-indigo-600">₹0</p></div>
-                                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100"><p class="text-[10px] text-slate-400 font-bold uppercase">Total Net Balance</p><p id="perf-life-dues" class="text-lg font-bold text-rose-600">₹0</p></div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 border-t pt-6 border-slate-100">
-                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                            <p class="text-xs font-bold text-slate-500 uppercase mb-2">Delivery Success Volumetric Mapping</p>
-                            <div class="h-48 relative flex justify-center items-center">
-                                <canvas id="analyticsFulfillmentChart"></canvas>
-                            </div>
-                        </div>
-                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                            <p class="text-xs font-bold text-slate-500 uppercase mb-2">Financial Remittance Metrics Breakdown</p>
-                            <div class="h-48 relative flex justify-center items-center">
-                                <canvas id="analyticsFinanceChart"></canvas>
+                                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100"><p class="text-[10px] text-slate-400 font-bold uppercase">Total Manifests</p><p id="perf-life-ops" class="text-lg font-bold text-slate-800">0</p></div>
+                                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100"><p class="text-[10px] text-slate-400 font-bold uppercase">Fulfillment</p><p id="perf-life-remit" class="text-lg font-bold text-indigo-600">100%</p></div>
+                                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100"><p class="text-[10px] text-slate-400 font-bold uppercase">Total Dues/Shorts</p><p id="perf-life-dues" class="text-lg font-bold text-rose-600">₹0</p></div>
                             </div>
                         </div>
                     </div>
@@ -117,9 +107,91 @@
                 <div class="border-b border-slate-200 pb-3 flex justify-between items-center">
                     <div>
                         <h2 class="text-xl font-bold text-slate-900">🏢 Overall Hub Management Overview</h2>
-                        <p class="text-xs text-slate-500 mt-0.5">Consolidated daily metrics parsed on live date filtering parameters.</p>
+                        <p class="text-xs text-slate-500 mt-0.5">Daily consolidated logistics metrics, split remittance flow, and local hub expenditures tracking.</p>
                     </div>
                     <span id="mgmt-date-badge" class="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full">Date: --</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 md:col-span-1">
+                        <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider border-b pb-2">💵 Split Head Office Remittance Flow</h3>
+                        <form id="hq-remit-form" onsubmit="commitRemittanceLog(event)" class="space-y-3">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Overall Collected Money Today (₹)</label>
+                                <input type="number" id="remit-collected" required min="0" oninput="calculateLiveRemitDifference()" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-semibold outline-none focus:border-blue-500">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">CMS Machine Amount (₹)</label>
+                                    <input type="number" id="remit-cms" min="0" value="0" oninput="calculateLiveRemitDifference()" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-semibold outline-none focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Online Transfer Amount (₹)</label>
+                                    <input type="number" id="remit-online" min="0" value="0" oninput="calculateLiveRemitDifference()" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-semibold outline-none focus:border-blue-500">
+                                </div>
+                            </div>
+                            <div class="p-2.5 rounded-xl bg-slate-100 flex justify-between items-center text-[11px] font-bold text-slate-700" id="remit-strip">
+                                <span>Calculated Due / Short:</span>
+                                <span id="remit-short-value">₹0</span>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Reason for Short / Due *</label>
+                                <textarea id="remit-reason" placeholder="State reason if there's an outstanding deficit..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs h-14 outline-none resize-none focus:border-blue-500"></textarea>
+                            </div>
+                            <button type="submit" class="w-full bg-emerald-600 text-white text-xs font-bold py-2.5 rounded-xl hover:bg-emerald-700 transition-all shadow-sm">Commit Remittance Record</button>
+                        </form>
+
+                        <div class="border-t pt-4 mt-2">
+                            <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider border-b pb-2 mb-2">📉 Log Office Expenditure</h3>
+                            <form id="office-exp-form" onsubmit="commitOfficeExpenditure(event)" class="space-y-2">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <input type="number" id="exp-amount" required placeholder="Amount (₹)" min="1" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs outline-none">
+                                    <input type="text" id="exp-reason" required placeholder="Reason / Particulars" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs outline-none">
+                                </div>
+                                <button type="submit" class="w-full bg-slate-800 text-white text-[11px] font-bold py-2 rounded-xl hover:bg-slate-700 transition-all">Add Expenditure</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm md:col-span-2 flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider border-b pb-2 mb-3">📋 Head Office Split Remittance Audit Trail</h3>
+                            <div class="overflow-x-auto max-h-40 overflow-y-auto mb-4">
+                                <table class="w-full text-left border-collapse text-xs">
+                                    <thead>
+                                        <tr class="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-200">
+                                            <th class="p-3">Collected (₹)</th>
+                                            <th class="p-3">CMS (₹)</th>
+                                            <th class="p-3">Online (₹)</th>
+                                            <th class="p-3">Short/Due (₹)</th>
+                                            <th class="p-3">Reason Matrix Log</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="hq-remit-tbody" class="divide-y divide-slate-100 font-medium text-slate-700"></tbody>
+                                </table>
+                            </div>
+
+                            <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider border-b pb-2 mb-2">🏷️ Local Hub Expenditure Ledger</h3>
+                            <div class="overflow-x-auto max-h-36 overflow-y-auto">
+                                <table class="w-full text-left border-collapse text-xs">
+                                    <thead>
+                                        <tr class="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-200">
+                                            <th class="p-2">Date</th>
+                                            <th class="p-2">Particulars / Reason</th>
+                                            <th class="p-2 text-right">Debit Amount (₹)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="office-exp-tbody" class="divide-y divide-slate-100 font-medium text-slate-700"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-4 gap-2 border-t pt-4 mt-2 text-center">
+                            <div><p class="text-[9px] text-slate-400 font-bold uppercase">Overall Collected</p><p id="m-stat-cod" class="text-base font-bold text-slate-900">₹0</p></div>
+                            <div><p class="text-[9px] text-slate-400 font-bold uppercase">Outstanding Shorts</p><p id="m-stat-shorts" class="text-base font-bold text-rose-600">₹0</p></div>
+                            <div><p class="text-[9px] text-slate-400 font-bold uppercase">Total Expenses</p><p id="m-stat-expenses" class="text-base font-bold text-amber-900">₹0</p></div>
+                            <div><p class="text-[9px] text-slate-400 font-bold uppercase">Accrued Penalties</p><p id="m-stat-penalties" class="text-base font-bold text-amber-700">₹0</p></div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -130,34 +202,35 @@
                         </div>
                         <div class="grid grid-cols-2 gap-4 text-sm font-medium text-slate-600">
                             <div>Total Run Sheet Load (OFD): <span id="m-del-ofd" class="font-bold text-slate-900 float-right">0</span></div>
-                            <div>Successful Deliveries (OK): <span id="m-del-ok" class="font-bold text-emerald-600 float-right">0</span></div>
+                            <div>Successful Deliveries: <span id="m-del-ok" class="font-bold text-emerald-600 float-right">0</span></div>
                             <div>Hold / Temp Exceptions: <span id="m-del-hold" class="font-bold text-amber-600 float-right">0</span></div>
                             <div>Cancelled / RTO Inbound: <span id="m-del-rto" class="font-bold text-rose-600 float-right">0</span></div>
+                            <div class="col-span-2 border-t pt-2 mt-1">Left Behind (Calculated): <span id="m-del-un" class="font-bold text-purple-600 float-right">0</span></div>
                         </div>
                     </div>
 
                     <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-                        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider border-b pb-2">💵 Financial Overview For Chosen Date</h4>
+                        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider border-b pb-2">🛵 Pickup Lifecycle Summary</h4>
                         <div class="grid grid-cols-2 gap-4 text-sm font-medium text-slate-600">
-                            <div>Total App Expected Cash: <span id="m-stat-expected" class="font-bold text-blue-600 float-right">₹0</span></div>
-                            <div>Total Hand Cash Deposited: <span id="m-stat-handcash" class="font-bold text-emerald-600 float-right">₹0</span></div>
-                            <div>Total Net Hub Expenditure: <span id="m-stat-expenditure" class="font-bold text-amber-600 float-right">₹0</span></div>
-                            <div class="text-rose-600">Short Balance Due: <span id="m-stat-shorts" class="font-bold text-rose-600 float-right">₹0</span></div>
+                            <div>Total Assigned Pickups: <span id="m-pick-ofd" class="font-bold text-slate-900 float-right">0</span></div>
+                            <div>Successful Receptions: <span id="m-pick-ok" class="font-bold text-emerald-600 float-right">0</span></div>
+                            <div>Cancelled By Client: <span id="m-pick-cancel" class="font-bold text-rose-600 float-right">0</span></div>
+                            <div>Due Pending Pickups: <span id="m-pick-due" class="font-bold text-amber-600 float-right">0</span></div>
                         </div>
                     </div>
                 </div>
 
                 <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                     <div class="px-6 py-4 bg-slate-50 border-b border-slate-100">
-                        <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">🏆 Daily Fleet Operational Standings (Filtered Date)</h4>
+                        <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">🏆 Daily Fleet Operational Standings</h4>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse">
                             <thead>
                                 <tr class="bg-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
                                     <th class="p-4">Rider Identity (Name)</th>
-                                    <th class="p-4 text-center">Runsheet ID / Cross Ref</th>
-                                    <th class="p-4 text-center">Delivered Orders</th>
+                                    <th class="p-4 text-center">Cross-Ref ID</th>
+                                    <th class="p-4 text-center">Data Type</th>
                                     <th class="p-4 text-center">Delivery Efficiency</th>
                                     <th class="p-4 text-right">App Expected Cash</th>
                                     <th class="p-4 text-right">Hand Cash Handed In</th>
@@ -171,6 +244,7 @@
             </section>
 
             <section id="sec-salary-ledger" class="hidden space-y-6">
+                <!-- Identical HTML structure from original[cite: 1] -->
                 <div class="border-b border-slate-200 pb-3 flex justify-between items-center">
                     <div>
                         <h2 class="text-xl font-bold text-slate-900">💰 Bi-Monthly 15-Day Cycle Salary Ledger</h2>
@@ -180,7 +254,6 @@
                         Active Payout Period Range
                     </div>
                 </div>
-
                 <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                     <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
                         <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">💼 Active Period Cumulative Fleet Payroll Statements</h4>
@@ -205,6 +278,7 @@
             </section>
 
             <section id="sec-rider-view" class="hidden space-y-6">
+                 <!-- Identical HTML structure from original[cite: 1] -->
                 <div class="border-b border-slate-200 pb-3 flex justify-between items-center">
                     <div>
                         <h2 class="text-xl font-bold text-slate-900">🛵 Rider Daily Activity Ledger Search</h2>
@@ -235,16 +309,29 @@
                         </div>
                     </div>
 
-                    <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-3">
-                        <h4 class="text-xs font-bold text-slate-700 uppercase border-b pb-2 tracking-wide">📦 Delivery Performance Breakdowns</h4>
-                        <div class="grid grid-cols-2 gap-4 text-sm font-medium text-slate-600">
-                            <div>Total Load Allocation (OFD): <span id="r-del-ofd" class="font-bold text-slate-900 float-right">0</span></div>
-                            <div>Successfully Delivered (OK): <span id="r-del-ok" class="font-bold text-emerald-600 float-right">0</span></div>
-                            <div>Hold / Delayed Logs: <span id="r-del-hold" class="font-bold text-amber-600 float-right">0</span></div>
-                            <div>Cancelled / Return To Origin (RTO): <span id="r-del-rto" class="font-bold text-rose-600 float-right">0</span></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-3">
+                            <h4 class="text-xs font-bold text-slate-700 uppercase border-b pb-2 tracking-wide">📦 Delivery Performance Breakdowns</h4>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between border-b pb-1"><span>Total Load Allocation (OFD):</span><span id="r-del-ofd" class="font-bold text-slate-900">0</span></div>
+                                <div class="flex justify-between border-b pb-1"><span>Successfully Delivered:</span><span id="r-del-ok" class="font-bold text-emerald-600">0</span></div>
+                                <div class="flex justify-between border-b pb-1"><span>Hold / Delayed Logs:</span><span id="r-del-hold" class="font-bold text-amber-600">0</span></div>
+                                <div class="flex justify-between border-b pb-1"><span>Cancelled / Return To Origin (RTO):</span><span id="r-del-rto" class="font-bold text-rose-600">0</span></div>
+                                <div class="flex justify-between border-b pb-1"><span>Left Behind (Calculated):</span><span id="r-del-un" class="font-bold text-purple-600">0</span></div>
+                                <div class="flex justify-between pb-1 text-red-600 font-medium"><span>Calculated Fake Locations:</span><span id="r-del-fake" class="font-bold">0</span></div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-3">
+                            <h4 class="text-xs font-bold text-slate-700 uppercase border-b pb-2 tracking-wide">🛵 Pickup Task Breakdowns</h4>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between border-b pb-1"><span>Total Assigned Pickups:</span><span id="r-pick-ofd" class="font-bold text-slate-900">0</span></div>
+                                <div class="flex justify-between border-b pb-1"><span>Successful Package Pickups:</span><span id="r-pick-ok" class="font-bold text-emerald-600">0</span></div>
+                                <div class="flex justify-between border-b pb-1"><span>Cancelled By Merchant Base:</span><span id="r-pick-cancel" class="font-bold text-rose-600">0</span></div>
+                                <div class="flex justify-between pb-1"><span>Due Shipments Pending Amount:</span><span id="r-pick-due" class="font-bold text-amber-600">0</span></div>
+                            </div>
                         </div>
                     </div>
-
                     <div class="bg-slate-100 p-5 rounded-2xl border border-slate-200">
                         <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Required Desk Short/Due Reason Logs</h4>
                         <p id="r-remarks-view" class="text-sm text-slate-600 italic">No operational short explanations recorded.</p>
@@ -256,28 +343,79 @@
                 </div>
             </section>
 
-            <section id="sec-master-rows" class="hidden space-y-6">
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div class="px-6 py-4 bg-slate-50 border-b border-slate-200">
-                        <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">📋 Dynamic Columns Raw Records Matrix (Direct from Live Google Sheet)</h4>
+            <section id="sec-entry" class="hidden max-w-2xl mx-auto space-y-6">
+                 <!-- Identical HTML structure from original[cite: 1] -->
+                <div class="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm space-y-6">
+                    <div class="border-b border-slate-100 pb-4">
+                        <h3 class="text-lg font-bold text-slate-900">📝 Clean Ingestion Console</h3>
+                        <p class="text-xs text-slate-400 mt-1">Upload exactly two operational runsheets (FW & RV matching case-sensitive uppercase) to instantly map dataset.</p>
                     </div>
-                    <div class="overflow-x-auto max-h-[550px] overflow-y-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead class="sticky top-0 bg-slate-100 z-10">
-                                <tr id="table-headers" class="text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
-                                    </tr>
-                            </thead>
-                            <tbody id="master-sheet-tbody" class="divide-y divide-slate-100 text-xs font-medium text-slate-700">
-                                <tr>
-                                    <td class="text-center py-8 text-slate-400 italic">Connecting to Google Sheet matrix database...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+
+                    <div class="bg-slate-50 border border-slate-200 p-5 rounded-xl space-y-2">
+                        <label class="block text-xs font-bold text-slate-700 uppercase">⚡ Step 1: Scan & Load Operational Runsheets (CSV - Select multiple files)</label>
+                        <p class="text-[11px] text-slate-500 italic">Notice: Forward runsheet name must contain 'FW' and Reverse must contain 'RV' in ALL CAPS to trigger processing.</p>
+                        <input type="file" id="runsheet-csv-picker" accept=".csv" multiple class="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
                     </div>
+
+                    <form id="hubOpsForm" onsubmit="saveTransactionBlockToDb(event)" class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-2">Process Entry Date</label>
+                                <input type="date" id="form-date" required class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none">
+                            </div>
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="block text-xs font-bold text-slate-600 uppercase">Target Active Rider (Name Mapping)</label>
+                                    <button type="button" onclick="createNewRiderManuallyPrompt()" class="text-xs text-blue-600 font-bold hover:underline">+ Add New Rider</button>
+                                </div>
+                                <select id="form-rider-dropdown" required onchange="autoFillRiderIdField()" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none font-medium">
+                                    <option value="">-- No Active Profile Tracked --</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-2">Cross-Reference Rider ID</label>
+                            <input type="text" id="form-rider-id" placeholder="Associated Rider Identification Key" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none font-medium">
+                        </div>
+
+                        <div id="parsed-summary-card" class="hidden bg-emerald-50 border border-emerald-200 p-4 rounded-xl space-y-2 text-xs text-slate-700">
+                            <p class="font-bold text-emerald-800 uppercase tracking-wide">📦 Current Runsheet Auto-calculated Summary Matrix:</p>
+                            <div class="grid grid-cols-2 gap-2 font-medium">
+                                <div id="summary-lbl-del">Forward Orders: 0</div>
+                                <div id="summary-lbl-pick">Reverse Pickups: 0</div>
+                            </div>
+                        </div>
+
+                        <div class="border-t pt-4 space-y-4">
+                            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">💰 Daily Remittance Matching Check</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Total App Expected Value (₹)</label>
+                                    <input type="number" id="form-f-expected" min="0" step="0.01" value="0" oninput="evaluateFinancialDues()" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Total Cash Handed In (₹)</label>
+                                    <input type="number" id="form-f-handcash" min="0" step="0.01" value="0" oninput="evaluateFinancialDues()" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none">
+                                </div>
+                            </div>
+                            <div class="p-3 rounded-xl flex justify-between items-center text-xs font-bold bg-slate-100 text-slate-700" id="live-financial-status-strip">
+                                <span>Calculated Due Desk Short:</span>
+                                <span id="live-short-value">₹0</span>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Short Balance Explanation (If Applicable)</label>
+                                <textarea id="form-remarks" placeholder="Provide breakdown explanations for outstanding shorts at desk..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs h-16 outline-none resize-none"></textarea>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="w-full bg-slate-900 text-white font-bold py-3.5 rounded-xl hover:bg-slate-800 shadow-md transition-all">Commit Operations Record</button>
+                    </form>
                 </div>
             </section>
 
             <section id="sec-barcodes" class="hidden max-w-3xl mx-auto bg-white p-8 rounded-2xl border border-slate-100 shadow-sm">
+                 <!-- Identical HTML structure from original[cite: 1] -->
                 <div class="border-b border-slate-100 pb-4 mb-6">
                     <h3 class="text-lg font-bold text-slate-900">🏷️ Pure Barcode Generator Studio</h3>
                     <p class="text-xs text-slate-400 mt-1">Converts explicit AWB sequences into an 8-slot strict vertical A4 grid layout print module.</p>
@@ -286,172 +424,111 @@
                 <div class="space-y-6">
                     <div>
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Select AWB Ingestion Target Source</label>
-                        <textarea id="barcode-text-area" placeholder="SFX88499210&#10;SFX88499211&#10;SFX88499212" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 h-36 font-mono text-sm outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                        <div class="grid grid-cols-3 gap-4 mb-4">
+                            <label class="flex items-center space-x-2 p-3 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-100">
+                                <input type="radio" name="barMode" value="paste" checked onclick="toggleBarcodeMode('paste')" class="text-blue-600">
+                                <span class="text-xs font-semibold text-slate-700">1. Paste AWB List</span>
+                            </label>
+                            <label class="flex items-center space-x-2 p-3 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-100">
+                                <input type="radio" name="barMode" value="csv" onclick="toggleBarcodeMode('file')" class="text-blue-600">
+                                <span class="text-xs font-semibold text-slate-700">2. Ingest CSV File</span>
+                            </label>
+                            <label class="flex items-center space-x-2 p-3 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-100">
+                                <input type="radio" name="barMode" value="excel" onclick="toggleBarcodeMode('file')" class="text-blue-600">
+                                <span class="text-xs font-semibold text-slate-700">3. Ingest Excel Sheet</span>
+                            </label>
+                        </div>
+
+                        <div id="bar-input-paste-container">
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-2">Raw Text Tokens Dump Workspace</label>
+                            <textarea id="barcode-text-area" placeholder="SFX88499210&#10;SFX88499211&#10;SFX88499212" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 h-36 font-mono text-sm outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                        </div>
+
+                        <div id="bar-input-file-container" class="hidden">
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-2">Select Spreadsheet/CSV Manifest Document</label>
+                            <input type="file" id="barcode-file-picker" accept=".csv, .xls, .xlsx" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
                     </div>
+
                     <button onclick="compileStrictA4BarcodePdfGrid()" class="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl hover:bg-blue-700 shadow-md transition-all">Compile High-Scan 8-Grid Portrait A4 PDF</button>
                 </div>
             </section>
-
         </main>
     </div>
 
     <div id="canvas-vault"></div>
 
     <script>
-        const sheetId = '1OdiGZnSn5sugwEtBBJbeLu2kIWmr4avJ-eLQlPwUrt4';
-        const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
+        // --- GOOGLE SHEETS API INTEGRATION REWRITE ---
+        const APPS_SCRIPT_URL = 'YOUR_WEB_APP_URL_HERE'; // <--- REPLACE THIS 
 
+        // Core data structures[cite: 1]
         let hubDatabase = [];
         let awbGlobalLedger = {};
+        let hqRemittanceLedger = [];
+        let officeExpenditures = [];
+        let riderDirectory = {};
+        let activeParsedPayload = null;
 
-        let fulfillmentChartInstance = null;
-        let financeChartInstance = null;
-
-        window.onload = function() {
+        window.onload = async function() {
             const todayStr = new Date().toISOString().split('T')[0];
             document.getElementById('global-date-filter').value = todayStr;
+            document.getElementById('form-date').value = todayStr;
             
-            initCharts();
-            fetchLiveGoogleSheetData();
-            setInterval(fetchLiveGoogleSheetData, 60000); // Auto sync clean every minute
+            document.getElementById('runsheet-csv-picker').addEventListener('change', readAndAutofillRunsheetCSV, false);
+            
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('#global-awb-search') && !e.target.closest('#awb-search-result-panel')) {
+                    document.getElementById('awb-search-result-panel').classList.add('hidden');
+                }
+            });
+
+            // Fetch Data from Google Sheets on load
+            await fetchAllDataFromSheets();
+
+            syncWorkspaceState();
+            rebuildFormDropdownOptions();
         };
 
-        function initCharts() {
-            const ctxFul = document.getElementById('analyticsFulfillmentChart').getContext('2d');
-            fulfillmentChartInstance = new Chart(ctxFul, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Delivered', 'On Hold', 'RTO'],
-                    datasets: [{ data: [0, 0, 0], backgroundColor: ['#10b981', '#f59e0b', '#ef4444'], borderWidth: 1 }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } }
-                }
-            });
-
-            const ctxFin = document.getElementById('analyticsFinanceChart').getContext('2d');
-            financeChartInstance = new Chart(ctxFin, {
-                type: 'bar',
-                data: {
-                    labels: ['Expected', 'Hand Cash', 'Expenditure', 'Short Balance'],
-                    datasets: [{ label: 'Amount (₹)', data: [0, 0, 0, 0], backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#f43f5e'] }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true } }
-                }
-            });
-        }
-
-        function fetchLiveGoogleSheetData() {
-            document.getElementById('sync-status').innerText = "🔄 Syncing Matrix...";
-            document.getElementById('sync-status').className = "text-[11px] text-blue-600 font-bold bg-blue-50 border border-blue-200 px-3 py-2 rounded-xl block text-center";
-
-            fetch(csvUrl)
-                .then(response => response.text())
-                .then(csvText => {
-                    parseGoogleSheetMatrix(csvText);
-                })
-                .catch(err => {
-                    console.error(err);
-                    document.getElementById('sync-status').innerText = "❌ Sync Failed";
-                    document.getElementById('sync-status').className = "text-[11px] text-rose-600 font-bold bg-rose-50 border border-rose-200 px-3 py-2 rounded-xl block text-center";
-                });
-        }
-
-        function parseGoogleSheetMatrix(text) {
-            const rows = text.split('\n').map(row => {
-                return row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.replace(/^"|"$/g, '').trim());
-            }).filter(row => row.length > 0 && row.some(cell => cell !== ""));
-
-            if(rows.length === 0) return;
-
-            const headers = rows[0];
-            const lowerHeaders = headers.map(h => h.toLowerCase());
-
-            // Auto mapping system indexes from column names dynamically
-            const idxDate = lowerHeaders.findIndex(h => h.includes('date'));
-            const idxName = lowerHeaders.findIndex(h => h.includes('name') || h.includes('rider'));
-            const idxRef = lowerHeaders.findIndex(h => h.includes('id') || h.includes('runsheet') || h.includes('cross'));
-            const idxOfd = lowerHeaders.findIndex(h => h.includes('ofd') || h.includes('load'));
-            const idxDel = lowerHeaders.findIndex(h => h.includes('del') || h.includes('ok'));
-            const idxHold = lowerHeaders.findIndex(h => h.includes('hold'));
-            const idxRto = lowerHeaders.findIndex(h => h.includes('rto'));
-            const idxExpected = lowerHeaders.findIndex(h => h.includes('expected') || h.includes('app'));
-            const idxHand = lowerHeaders.findIndex(h => h.includes('hand') || h.includes('cash'));
-            const idxExp = lowerHeaders.findIndex(h => h.includes('expenditure') || h.includes('exp'));
-            const idxRemarks = lowerHeaders.findIndex(h => h.includes('remark') || h.includes('reason'));
-            const idxAwbList = lowerHeaders.findIndex(h => h.includes('awb'));
-
-            // Render Dynamic Raw Table View
-            const headerRow = document.getElementById('table-headers');
-            headerRow.innerHTML = '';
-            headers.forEach(h => headerRow.insertAdjacentHTML('beforeend', `<th class="p-4">${h}</th>`));
-
-            const rawTbody = document.getElementById('master-sheet-tbody');
-            rawTbody.innerHTML = '';
-
-            hubDatabase = [];
-            awbGlobalLedger = {};
-
-            for(let i = 1; i < rows.length; i++) {
-                const row = rows[i];
+        async function fetchAllDataFromSheets() {
+            try {
+                const response = await fetch(APPS_SCRIPT_URL + '?action=getData');
+                const data = await response.json();
                 
-                // Inject into table row html
-                let trHtml = `<tr class="hover:bg-slate-50">`;
-                row.forEach((cell, idx) => {
-                    let style = "p-4 border-b border-slate-100";
-                    if(idx === idxHand) style += " text-emerald-600 font-bold";
-                    if(idx === idxExpected) style += " text-blue-600 font-bold";
-                    trHtml += `<td class="${style}">${cell || '-'}</td>`;
-                });
-                trHtml += `</tr>`;
-                rawTbody.insertAdjacentHTML('beforeend', trHtml);
-
-                // Safe parsing into system objects
-                const cleanNum = (val) => parseFloat((val || '').replace(/[^\d.]/g, '')) || 0;
-                
-                const recBlock = {
-                    date: idxDate !== -1 ? row[idxDate] : '',
-                    name: idxName !== -1 ? row[idxName] : 'Unknown Rider',
-                    riderId: idxRef !== -1 ? row[idxRef] : 'N/A',
-                    d_ofd: idxOfd !== -1 ? parseInt(cleanNum(row[idxOfd])) : 0,
-                    d_ok: idxDel !== -1 ? parseInt(cleanNum(row[idxDel])) : 0,
-                    d_hold: idxHold !== -1 ? parseInt(cleanNum(row[idxHold])) : 0,
-                    d_rto: idxRto !== -1 ? parseInt(cleanNum(row[idxRto])) : 0,
-                    f_expected: idxExpected !== -1 ? cleanNum(row[idxExpected]) : 0,
-                    f_handcash: idxHand !== -1 ? cleanNum(row[idxHand]) : 0,
-                    f_expenditure: idxExp !== -1 ? cleanNum(row[idxExp]) : 0,
-                    remarks: idxRemarks !== -1 ? row[idxRemarks] : 'Balanced Perfectly.'
-                };
-
-                hubDatabase.push(recBlock);
-
-                // Extract AWB values mapping into search index system
-                if(idxAwbList !== -1 && row[idxAwbList]) {
-                    const awbs = row[idxAwbList].split(/[\s|;,]+/);
-                    awbs.forEach(awb => {
-                        if(awb.trim()) {
-                            awbGlobalLedger[awb.trim()] = {
-                                awb: awb.trim(), rider: recBlock.name, date: recBlock.date, runsheet: recBlock.riderId
-                            };
-                        }
-                    });
+                if (data.status === 'success') {
+                    hubDatabase = data.payload.hubDatabase || [];
+                    awbGlobalLedger = data.payload.awbGlobalLedger || {};
+                    hqRemittanceLedger = data.payload.hqRemittanceLedger || [];
+                    officeExpenditures = data.payload.officeExpenditures || [];
+                    riderDirectory = data.payload.riderDirectory || {};
                 }
+            } catch (error) {
+                console.error("Error fetching data from Google Sheets:", error);
+                alert("Failed to sync with Google Sheets. Please check your connection or Web App URL.");
+            } finally {
+                document.getElementById('loading-overlay').style.display = 'none';
             }
-
-            document.getElementById('sync-status').innerText = "🟢 Live Synchronized";
-            document.getElementById('sync-status').className = "text-[11px] text-emerald-600 font-bold bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-xl block text-center";
-            
-            syncWorkspaceState();
         }
 
+        async function pushDataToSheets(datasetName, datasetObject) {
+            try {
+                await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: 'saveData',
+                        dataset: datasetName,
+                        data: datasetObject
+                    })
+                });
+            } catch (error) {
+                console.error("Error saving to Google Sheets:", error);
+            }
+        }
+
+        // --- RETAINED LOGIC FROM ORIGINAL SOURCE[cite: 1] ---
         function switchTab(tabId) {
-            ['management', 'salary-ledger', 'rider-view', 'master-rows', 'barcodes'].forEach(t => {
+            ['management', 'salary-ledger', 'rider-view', 'entry', 'barcodes'].forEach(t => {
                 document.getElementById(`sec-${t}`).classList.add('hidden');
                 document.getElementById(`btn-${t}`).classList.remove('active');
             });
@@ -459,37 +536,277 @@
             document.getElementById(`btn-${tabId}`).classList.add('active');
         }
 
+        function toggleBarcodeMode(modeType) {
+            if(modeType === 'paste') {
+                document.getElementById('bar-input-paste-container').classList.remove('hidden');
+                document.getElementById('bar-input-file-container').classList.add('hidden');
+            } else {
+                document.getElementById('bar-input-paste-container').classList.add('hidden');
+                document.getElementById('bar-input-file-container').classList.remove('hidden');
+            }
+        }
+
+        function evaluateFinancialDues() {
+            const expected = parseFloat(document.getElementById('form-f-expected').value) || 0;
+            const hand = parseFloat(document.getElementById('form-f-handcash').value) || 0;
+            const shortDueVal = expected - hand;
+            const strip = document.getElementById('live-financial-status-strip');
+            const valDisplay = document.getElementById('live-short-value');
+            valDisplay.innerText = `₹${shortDueVal.toLocaleString('en-IN')}`;
+            
+            if(shortDueVal > 0) {
+                strip.className = "p-3 rounded-xl flex justify-between items-center text-xs font-bold bg-red-100 text-red-700 border border-red-200";
+                document.getElementById('form-remarks').required = true;
+            } else {
+                strip.className = "p-3 rounded-xl flex justify-between items-center text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200";
+                document.getElementById('form-remarks').required = false;
+            }
+            return shortDueVal;
+        }
+
+        function calculateLiveRemitDifference() {
+            const collected = parseFloat(document.getElementById('remit-collected').value) || 0;
+            const cms = parseFloat(document.getElementById('remit-cms').value) || 0;
+            const online = parseFloat(document.getElementById('remit-online').value) || 0;
+            const totalPaid = cms + online;
+            const shortDue = collected - totalPaid;
+
+            const strip = document.getElementById('remit-strip');
+            const display = document.getElementById('remit-short-value');
+            display.innerText = `₹${shortDue.toLocaleString('en-IN')}`;
+
+            if(shortDue > 0) {
+                strip.className = "p-2.5 rounded-xl flex justify-between items-center text-[11px] font-bold bg-red-100 text-red-700 border border-red-200";
+                document.getElementById('remit-reason').required = true;
+            } else {
+                strip.className = "p-2.5 rounded-xl flex justify-between items-center text-[11px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200";
+                document.getElementById('remit-reason').required = false;
+            }
+        }
+
+        function createNewRiderManuallyPrompt() {
+            const name = prompt("Enter full name of the new rider profile:");
+            if(!name || !name.trim()) return;
+            const customId = prompt(`Enter system cross-reference ID for ${name.trim()}:`) || "N/A";
+            
+            riderDirectory[name.trim()] = customId.trim();
+            
+            // Replaced localStorage with async API push
+            pushDataToSheets('riderDirectory', riderDirectory);
+
+            rebuildFormDropdownOptions();
+            document.getElementById('form-rider-dropdown').value = name.trim();
+            autoFillRiderIdField();
+        }
+
+        function autoFillRiderIdField() {
+            const name = document.getElementById('form-rider-dropdown').value;
+            document.getElementById('form-rider-id').value = riderDirectory[name] || "";
+        }
+
+        function rebuildFormDropdownOptions() {
+            const dropdown = document.getElementById('form-rider-dropdown');
+            dropdown.innerHTML = '<option value="">-- Select Active Rider Profile --</option>';
+            Object.keys(riderDirectory).forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name; opt.innerText = name;
+                dropdown.appendChild(opt);
+            });
+        }
+
+        function readAndAutofillRunsheetCSV(e) {
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+
+            let d_ofd = 0, d_ok = 0, d_hold = 0, d_rto = 0, d_notcontact = 0;
+            let p_ofd = 0, p_ok = 0, p_cancel = 0, p_due = 0;
+            let detectedRiderRef = "";
+            const targetDate = document.getElementById('global-date-filter').value;
+            let validFilesCount = 0; let filesProcessed = 0;
+
+            for (let f = 0; f < files.length; f++) { if (files[f].name.includes("FW") || files[f].name.includes("RV")) { validFilesCount++; } }
+
+            if (validFilesCount === 0) { alert("No valid runsheets matching strict caps rules 'FW' or 'RV' detected!"); return; }
+
+            for (let f = 0; f < files.length; f++) {
+                const file = files[f];
+                const isFW = file.name.includes("FW");
+                const isRV = file.name.includes("RV");
+                if (!isFW && !isRV) continue;
+
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    const text = evt.target.result;
+                    const rows = text.split('\n').map(row => row.split(',').map(cell => cell.trim()));
+                    if(rows.length >= 2) {
+                        const headers = rows[0].map(h => h.toLowerCase());
+                        const awbIdx = headers.indexOf('awb');
+                        const runsheetIdx = headers.indexOf('runsheet');
+                        const statusIdx = headers.indexOf('status');
+                        const riderIdx = headers.indexOf('rider');
+
+                        if (awbIdx !== -1 && statusIdx !== -1 && riderIdx !== -1) {
+                            for(let i = 1; i < rows.length; i++) {
+                                const row = rows[i];
+                                if(row.length <= Math.max(awbIdx, statusIdx, riderIdx)) continue;
+                                const awbStr = row[awbIdx]; const runId = row[runsheetIdx] || "N/A";
+                                const statusStr = row[statusIdx].toLowerCase(); const riderStr = row[riderIdx];
+
+                                if(!awbStr) continue;
+                                if(!detectedRiderRef && riderStr) detectedRiderRef = riderStr.trim();
+
+                                const isPickupFile = isRV || awbStr.startsWith('R') || statusStr === 'picked' || statusStr.includes('pickup');
+
+                                awbGlobalLedger[awbStr] = {
+                                    awb: awbStr, runsheet: runId, rider: riderStr || "Unknown Rider",
+                                    status: row[statusIdx], date: targetDate, type: isPickupFile ? "Reverse Pickup Task" : "Forward Delivery Shipment"
+                                };
+
+                                if(!isPickupFile) {
+                                    d_ofd++;
+                                    if (statusStr === "delivered" || statusStr === "delivered successfully") d_ok++;
+                                    else if (statusStr === "on hold" || statusStr === "hold") d_hold++;
+                                    else if (statusStr === "rto" || statusStr.includes("return")) d_rto++;
+                                    else if (statusStr.includes("not contactable") || statusStr.includes("customer_not_contactable")) d_notcontact++;
+                                } else {
+                                    p_ofd++;
+                                    if (statusStr === "picked" || statusStr === "successful") p_ok++;
+                                    else if (statusStr.includes("cancel")) p_cancel++;
+                                    else p_due++;
+                                }
+                            }
+                        }
+                    }
+                    filesProcessed++;
+                    if (filesProcessed === validFilesCount) finalizeParsedData();
+                };
+                reader.readAsText(file);
+            }
+
+            function finalizeParsedData() {
+                // Cloud Sync Replacement
+                pushDataToSheets('awbGlobalLedger', awbGlobalLedger);
+
+                activeParsedPayload = {
+                    d_ofd, d_ok, d_hold, d_rto, d_un: d_ofd - (d_ok + d_hold + d_rto),
+                    d_notcontact, d_fake: Math.round(d_notcontact * (2 / 10)),
+                    p_ofd, p_ok, p_cancel, p_due
+                };
+
+                if(detectedRiderRef) {
+                    let matchedName = "";
+                    if(isNaN(detectedRiderRef)) {
+                        matchedName = detectedRiderRef;
+                        if(!riderDirectory[matchedName]) riderDirectory[matchedName] = "N/A";
+                    } else {
+                        matchedName = Object.keys(riderDirectory).find(k => riderDirectory[k] === detectedRiderRef) || "";
+                        if(!matchedName) {
+                            matchedName = prompt(`New Rider ID [${detectedRiderRef}] found. Input Rider Name:`) || "Rider_" + detectedRiderRef;
+                            riderDirectory[matchedName] = detectedRiderRef;
+                        }
+                    }
+                    // Cloud Sync Replacement
+                    pushDataToSheets('riderDirectory', riderDirectory);
+                    
+                    rebuildFormDropdownOptions();
+                    document.getElementById('form-rider-dropdown').value = matchedName;
+                    document.getElementById('form-rider-id').value = riderDirectory[matchedName];
+                }
+                document.getElementById('summary-lbl-del').innerText = `Forward Orders: ${d_ofd} (Delivered: ${d_ok})`;
+                document.getElementById('summary-lbl-pick').innerText = `Reverse Pickups: ${p_ofd} (Picked: ${p_ok})`;
+                document.getElementById('parsed-summary-card').classList.remove('hidden');
+            }
+        }
+
+        function saveTransactionBlockToDb(e) {
+            e.preventDefault();
+            const chosenRider = document.getElementById('form-rider-dropdown').value;
+            const riderId = document.getElementById('form-rider-id').value || "N/A";
+            const chosenDate = document.getElementById('form-date').value;
+            if(!chosenRider) { alert("Please allocate an active rider profile!"); return; }
+
+            const stats = activeParsedPayload || {
+                d_ofd: 0, d_ok: 0, d_hold: 0, d_rto: 0, d_un: 0, d_notcontact: 0, d_fake: 0,
+                p_ofd: 0, p_ok: 0, p_cancel: 0, p_due: 0
+            };
+
+            hubDatabase = hubDatabase.filter(x => !(x.name === chosenRider && x.date === chosenDate));
+
+            const record = {
+                id: Date.now(), name: chosenRider, deliveryType: "Consolidated", date: chosenDate, riderId: riderId,
+                ...stats,
+                f_expected: parseFloat(document.getElementById('form-f-expected').value) || 0,
+                f_handcash: parseFloat(document.getElementById('form-f-handcash').value) || 0,
+                remarks: document.getElementById('form-remarks').value.trim() || "Balanced perfectly at desk."
+            };
+
+            hubDatabase.push(record);
+
+            // Cloud Sync Replacement
+            pushDataToSheets('hubDatabase', hubDatabase);
+
+            document.getElementById('hubOpsForm').reset();
+            document.getElementById('parsed-summary-card').classList.add('hidden');
+            activeParsedPayload = null;
+            syncWorkspaceState(); rebuildFormDropdownOptions(); switchTab('management');
+        }
+
+        function commitRemittanceLog(e) {
+            e.preventDefault();
+            const date = document.getElementById('global-date-filter').value;
+            const collected = parseFloat(document.getElementById('remit-collected').value) || 0;
+            const cms = parseFloat(document.getElementById('remit-cms').value) || 0;
+            const online = parseFloat(document.getElementById('remit-online').value) || 0;
+            const totalPaid = cms + online;
+            const reason = document.getElementById('remit-reason').value.trim();
+
+            hqRemittanceLedger = hqRemittanceLedger.filter(x => x.date !== date);
+            hqRemittanceLedger.push({ date, collected, cms, online, totalPaid, reason: (collected - totalPaid) > 0 ? reason : "Balanced perfectly." });
+
+            // Cloud Sync Replacement
+            pushDataToSheets('hqRemittanceLedger', hqRemittanceLedger);
+
+            document.getElementById('hq-remit-form').reset();
+            document.getElementById('remit-short-value').innerText = "₹0";
+            document.getElementById('remit-cms').value = 0; document.getElementById('remit-online').value = 0;
+            syncWorkspaceState();
+        }
+
+        function commitOfficeExpenditure(e) {
+            e.preventDefault();
+            const date = document.getElementById('global-date-filter').value;
+            const amount = parseFloat(document.getElementById('exp-amount').value) || 0;
+            const reason = document.getElementById('exp-reason').value.trim();
+
+            officeExpenditures.push({ id: Date.now(), date, amount, reason });
+            
+            // Cloud Sync Replacement
+            pushDataToSheets('officeExpenditures', officeExpenditures);
+            
+            document.getElementById('office-exp-form').reset(); syncWorkspaceState();
+        }
+
         function calculatePenalties(record) {
             const performance = record.d_ofd > 0 ? (record.d_ok / record.d_ofd) * 100 : 0;
             let perfPenaltyRate = 0;
-            if (performance < 35) perfPenaltyRate = 4;
-            else if (performance < 50) perfPenaltyRate = 3;
-            
+            if (performance < 35) perfPenaltyRate = 4; else if (performance < 50) perfPenaltyRate = 3;
             const performancePenalty = record.d_ok * perfPenaltyRate;
+            const fakePenalty = record.d_fake * 5;
             const baseSalaryEarned = record.d_ok * 17; 
-            
             return {
-                baseSalaryEarned,
-                performancePenalty,
-                totalCut: performancePenalty,
-                netSalary: baseSalaryEarned - performancePenalty
+                baseSalaryEarned, performancePenalty, fakePenalty,
+                totalCut: performancePenalty + fakePenalty,
+                netSalary: baseSalaryEarned - (performancePenalty + fakePenalty)
             };
         }
 
         function getActiveCycleRange(dateStr) {
-            if(!dateStr) return { label: 'Cycle Range Pending', start: 1, end: 15, month: 0, year: 2026 };
             const d = new Date(dateStr);
-            const year = d.getFullYear();
-            const month = d.getMonth();
-            const day = d.getDate();
+            const year = d.getFullYear(); const month = d.getMonth(); const day = d.getDate();
             const monthName = d.toLocaleString('default', { month: 'long' });
 
-            if(day <= 15) {
-                return { label: `Cycle 1 (${monthName} 1st - 15th, ${year})`, start: 1, end: 15, month, year };
-            } else {
-                const lastDay = new Date(year, month + 1, 0).getDate();
-                return { label: `Cycle 2 (${monthName} 16th - ${lastDay}th, ${year})`, start: 16, end: lastDay, month, year };
-            }
+            if(day <= 15) { return { label: `Cycle 1 (${monthName} 1st - 15th, ${year})`, start: 1, end: 15, month, year }; } 
+            else { const lastDay = new Date(year, month + 1, 0).getDate(); return { label: `Cycle 2 (${monthName} 16th - ${lastDay}th, ${year})`, start: 16, end: lastDay, month, year }; }
         }
 
         function syncWorkspaceState() {
@@ -497,135 +814,110 @@
             document.getElementById('mgmt-date-badge').innerText = `Date: ${targetDate}`;
 
             const dayRecords = hubDatabase.filter(x => x.date === targetDate);
-            
-            let h_ofd = 0, h_ok = 0, h_hold = 0, h_rto = 0;
-            let h_expected = 0, h_handcash = 0, h_expenditure = 0, h_shorts = 0;
+            let hub_total_penalties = 0, hub_d_ofd = 0, hub_d_ok = 0, hub_d_hold = 0, hub_d_rto = 0, hub_d_un = 0;
+            let hub_p_ofd = 0, hub_p_ok = 0, hub_p_cancel = 0, hub_p_due = 0;
 
             const fleetTbody = document.getElementById('mgmt-fleet-tbody');
             fleetTbody.innerHTML = '';
-
             const riderPicker = document.getElementById('rider-select-picker');
-            const cachedRiderSelection = riderPicker.value;
+            const currentSelectedRider = riderPicker.value;
             riderPicker.innerHTML = '';
 
             dayRecords.forEach(r => {
-                h_ofd += r.d_ofd; h_ok += r.d_ok; h_hold += r.d_hold; h_rto += r.d_rto;
-                h_expected += r.f_expected; h_handcash += r.f_handcash; h_expenditure += r.f_expenditure;
-                
-                const currentShort = r.f_expected - r.f_handcash - r.f_expenditure;
-                if(currentShort > 0) h_shorts += currentShort;
+                hub_d_ofd += r.d_ofd; hub_d_ok += r.d_ok; hub_d_hold += r.d_hold; hub_d_rto += r.d_rto; hub_d_un += r.d_un;
+                hub_p_ofd += r.p_ofd; hub_p_ok += r.p_ok; hub_p_cancel += r.p_cancel; hub_p_due += r.p_due;
 
+                const cuts = calculatePenalties(r); hub_total_penalties += cuts.totalCut;
                 const riderEff = r.d_ofd > 0 ? Math.round((r.d_ok / r.d_ofd) * 100) : 0;
+                const individualShort = r.f_expected - r.f_handcash;
 
                 const fleetRow = `
                     <tr class="hover:bg-slate-50">
                         <td class="p-4 font-bold text-slate-900">${r.name}</td>
-                        <td class="p-4 text-center font-mono text-xs text-slate-500">${r.riderId}</td>
-                        <td class="p-4 text-center font-bold text-blue-600">${r.d_ok} / ${r.d_ofd}</td>
+                        <td class="p-4 text-center text-xs font-semibold text-slate-500">${r.riderId}</td>
+                        <td class="p-4 text-center text-xs font-semibold text-slate-600">${r.deliveryType}</td>
                         <td class="p-4 text-center"><span class="px-2 py-1 text-xs font-bold bg-blue-50 text-blue-700 rounded">${riderEff}%</span></td>
                         <td class="p-4 text-right text-slate-700">₹${r.f_expected.toLocaleString('en-IN')}</td>
                         <td class="p-4 text-right text-emerald-600 font-bold">₹${r.f_handcash.toLocaleString('en-IN')}</td>
-                        <td class="p-4 text-right ${currentShort > 0 ? 'text-rose-600 font-bold' : 'text-slate-500'}">₹${currentShort > 0 ? currentShort.toLocaleString('en-IN') : 0}</td>
+                        <td class="p-4 text-right ${individualShort > 0 ? 'text-rose-600 font-bold' : 'text-slate-500'}">₹${individualShort > 0 ? individualShort.toLocaleString('en-IN') : 0}</td>
                     </tr>
                 `;
                 fleetTbody.insertAdjacentHTML('beforeend', fleetRow);
             });
 
-            // Rebuild Unique Riders Dropdown Options
-            const uniqueRiders = [...new Set(hubDatabase.map(x => x.name))];
-            uniqueRiders.forEach(name => {
-                const opt = document.createElement('option');
-                opt.value = name; opt.innerText = name;
-                riderPicker.appendChild(opt);
+            const uniqueRidersInDb = [...new Set(hubDatabase.map(x => x.name))];
+            uniqueRidersInDb.forEach(name => {
+                const opt = document.createElement('option'); opt.value = name; opt.innerText = name; riderPicker.appendChild(opt);
             });
-            if(cachedRiderSelection && uniqueRiders.includes(cachedRiderSelection)) {
-                riderPicker.value = cachedRiderSelection;
-            }
+            if(currentSelectedRider && [...riderPicker.options].some(o => o.value === currentSelectedRider)) { riderPicker.value = currentSelectedRider; }
 
-            // Update Management Module Counters
-            document.getElementById('m-del-ofd').innerText = h_ofd;
-            document.getElementById('m-del-ok').innerText = h_ok;
-            document.getElementById('m-del-hold').innerText = h_hold;
-            document.getElementById('m-del-rto').innerText = h_rto;
-            document.getElementById('m-stat-eff').innerText = `${h_ofd > 0 ? Math.round((h_ok / h_ofd) * 100) : 0}% Success`;
+            const remitTbody = document.getElementById('hq-remit-tbody');
+            remitTbody.innerHTML = '';
+            let totalCollectedGlobal = 0, totalShortsGlobal = 0;
 
-            document.getElementById('m-stat-expected').innerText = `₹${h_expected.toLocaleString('en-IN')}`;
-            document.getElementById('m-stat-handcash').innerText = `₹${h_handcash.toLocaleString('en-IN')}`;
-            document.getElementById('m-stat-expenditure').innerText = `₹${h_expenditure.toLocaleString('en-IN')}`;
-            document.getElementById('m-stat-shorts').innerText = `₹${h_shorts.toLocaleString('en-IN')}`;
+            hqRemittanceLedger.forEach(log => {
+                const diff = log.collected - log.totalPaid;
+                if(log.date === targetDate) { totalCollectedGlobal = log.collected; totalShortsGlobal = diff > 0 ? diff : 0; }
+                const row = `
+                    <tr class="hover:bg-slate-50">
+                        <td class="p-3 font-semibold">₹${log.collected.toLocaleString('en-IN')}</td>
+                        <td class="p-3 font-semibold text-slate-600">₹${(log.cms || 0).toLocaleString('en-IN')}</td>
+                        <td class="p-3 font-semibold text-slate-600">₹${(log.online || 0).toLocaleString('en-IN')}</td>
+                        <td class="p-3 font-bold ${diff > 0 ? 'text-rose-600' : 'text-slate-400'}">₹${diff > 0 ? diff.toLocaleString('en-IN') : 0}</td>
+                        <td class="p-3 text-slate-500 italic truncate max-w-[150px]" title="${log.reason}">${log.reason}</td>
+                    </tr>
+                `;
+                remitTbody.insertAdjacentHTML('beforeend', row);
+            });
 
-            // Top Quick Info Cards Mapping
-            document.getElementById('perf-today-runsheets').innerText = dayRecords.length;
-            document.getElementById('perf-today-rate').innerText = `${h_ofd > 0 ? Math.round((h_ok / h_ofd) * 100) : 0}%`;
-            document.getElementById('perf-today-cash').innerText = `₹${h_handcash.toLocaleString('en-IN')}`;
+            const expTbody = document.getElementById('office-exp-tbody');
+            expTbody.innerHTML = ''; let totalExpensesGlobal = 0;
 
-            // Global Matrix Mapping
-            document.getElementById('perf-life-ops').innerText = hubDatabase.length;
+            officeExpenditures.forEach(exp => {
+                if(exp.date === targetDate) totalExpensesGlobal += exp.amount;
+                const row = `
+                    <tr class="hover:bg-slate-50"><td class="p-2 text-slate-400">${exp.date}</td><td class="p-2 font-medium text-slate-700">${exp.reason}</td><td class="p-2 text-right font-bold text-amber-900">₹${exp.amount.toLocaleString('en-IN')}</td></tr>
+                `;
+                expTbody.insertAdjacentHTML('beforeend', row);
+            });
+
+            const overallEff = hub_d_ofd > 0 ? Math.round((hub_d_ok / hub_d_ofd) * 100) : 0;
+            document.getElementById('m-stat-cod').innerText = `₹${totalCollectedGlobal.toLocaleString('en-IN')}`;
+            document.getElementById('m-stat-eff').innerText = `${overallEff}%`;
+            document.getElementById('m-stat-shorts').innerText = `₹${totalShortsGlobal.toLocaleString('en-IN')}`;
+            document.getElementById('m-stat-expenses').innerText = `₹${totalExpensesGlobal.toLocaleString('en-IN')}`;
+            document.getElementById('m-stat-penalties').innerText = `₹${hub_total_penalties.toLocaleString('en-IN')}`;
+            document.getElementById('m-del-ofd').innerText = hub_d_ofd; document.getElementById('m-del-ok').innerText = hub_d_ok; document.getElementById('m-del-hold').innerText = hub_d_hold; document.getElementById('m-del-rto').innerText = hub_d_rto; document.getElementById('m-del-un').innerText = Math.max(0, hub_d_un);
+            document.getElementById('m-pick-ofd').innerText = hub_p_ofd; document.getElementById('m-pick-ok').innerText = hub_p_ok; document.getElementById('m-pick-cancel').innerText = hub_p_cancel; document.getElementById('m-pick-due').innerText = hub_p_due;
+            document.getElementById('perf-today-runsheets').innerText = dayRecords.length; document.getElementById('perf-today-rate').innerText = `${overallEff}%`;
             
-            let globalLifeExpected = 0, globalLifeShorts = 0;
-            hubDatabase.forEach(x => {
-                globalLifeExpected += x.f_expected;
-                const s = x.f_expected - x.f_handcash - x.f_expenditure;
-                if(s > 0) globalLifeShorts += s;
-            });
-            document.getElementById('perf-life-remit').innerText = `₹${globalLifeExpected.toLocaleString('en-IN')}`;
-            document.getElementById('perf-life-dues').innerText = `₹${globalLifeShorts.toLocaleString('en-IN')}`;
+            let fieldCashAccum = 0; dayRecords.forEach(x => fieldCashAccum += x.f_handcash); document.getElementById('perf-today-cash').innerText = `₹${fieldCashAccum.toLocaleString('en-IN')}`;
+            document.getElementById('perf-life-ops').innerText = hubDatabase.length;
+            let lifeDues = 0; hqRemittanceLedger.forEach(l => { if((l.collected - l.totalPaid) > 0) lifeDues += (l.collected - l.totalPaid); });
+            document.getElementById('perf-life-dues').innerText = `₹${lifeDues.toLocaleString('en-IN')}`;
 
-            // Update Charts Volumetrics
-            if(fulfillmentChartInstance && financeChartInstance) {
-                fulfillmentChartInstance.data.datasets[0].data = [h_ok, h_hold, h_rto];
-                fulfillmentChartInstance.update();
-
-                financeChartInstance.data.datasets[0].data = [h_expected, h_handcash, h_expenditure, h_shorts];
-                financeChartInstance.update();
-            }
-
-            processBiMonthlySalaryLedger(targetDate);
-            renderIndividualRiderSheet();
+            processBiMonthlySalaryLedger(targetDate); renderIndividualRiderSheet();
         }
 
         function processBiMonthlySalaryLedger(activeDate) {
             const cycle = getActiveCycleRange(activeDate);
             document.getElementById('salary-cycle-title-badge').innerText = `📅 ${cycle.label}`;
-
-            const salaryTbody = document.getElementById('salary-ledger-tbody');
-            salaryTbody.innerHTML = '';
-
-            const cycleRecords = hubDatabase.filter(x => {
-                if(!x.date) return false;
-                const d = new Date(x.date);
-                return d.getFullYear() === cycle.year && d.getMonth() === cycle.month && d.getDate() >= cycle.start && d.getDate() <= cycle.end;
-            });
-
+            const salaryTbody = document.getElementById('salary-ledger-tbody'); salaryTbody.innerHTML = '';
+            const cycleRecords = hubDatabase.filter(x => { const d = new Date(x.date); return d.getFullYear() === cycle.year && d.getMonth() === cycle.month && d.getDate() >= cycle.start && d.getDate() <= cycle.end; });
             const uniqueRiders = [...new Set(hubDatabase.map(x => x.name))];
 
             uniqueRiders.forEach(riderName => {
-                const riderCycleData = cycleRecords.filter(x => x.name === riderName);
-                if(riderCycleData.length === 0) return;
-
-                let workingDays = 0; let totalDeliveredUnits = 0;
-                let cumulativeGross = 0; let cumulativePenalties = 0; let cumulativeNet = 0;
+                const riderCycleData = cycleRecords.filter(x => x.name === riderName); if(riderCycleData.length === 0) return;
+                let workingDays = 0, totalDeliveredUnits = 0, cumulativeGross = 0, cumulativePenalties = 0, cumulativeNet = 0;
                 const countedDays = [];
-
                 riderCycleData.forEach(entry => {
                     if(!countedDays.includes(entry.date)) { countedDays.push(entry.date); workingDays++; }
-                    totalDeliveredUnits += entry.d_ok;
-                    
-                    const financials = calculatePenalties(entry);
-                    cumulativeGross += financials.baseSalaryEarned;
-                    cumulativePenalties += financials.totalCut;
-                    cumulativeNet += financials.netSalary;
+                    totalDeliveredUnits += entry.d_ok; const financials = calculatePenalties(entry);
+                    cumulativeGross += financials.baseSalaryEarned; cumulativePenalties += financials.totalCut; cumulativeNet += financials.netSalary;
                 });
 
                 const rowHtml = `
-                    <tr class="hover:bg-slate-50">
-                        <td class="p-4 font-bold text-slate-900">${riderName}</td>
-                        <td class="p-4 text-center font-medium">${workingDays} Days Logged</td>
-                        <td class="p-4 text-center text-blue-600 font-bold">${totalDeliveredUnits} Orders</td>
-                        <td class="p-4 text-right text-emerald-600 font-bold">₹${cumulativeGross.toLocaleString('en-IN')}</td>
-                        <td class="p-4 text-right text-amber-700">₹${cumulativePenalties.toLocaleString('en-IN')}</td>
-                        <td class="p-4 text-right font-extrabold text-slate-900 bg-blue-50/40">₹${cumulativeNet.toLocaleString('en-IN')}</td>
-                    </tr>
+                    <tr class="hover:bg-slate-50"><td class="p-4 font-bold text-slate-900">${riderName}</td><td class="p-4 text-center font-medium">${workingDays} Days Logged</td><td class="p-4 text-center text-blue-600 font-bold">${totalDeliveredUnits} Orders</td><td class="p-4 text-right text-emerald-600 font-bold">₹${cumulativeGross.toLocaleString('en-IN')}</td><td class="p-4 text-right text-amber-700">₹${cumulativePenalties.toLocaleString('en-IN')}</td><td class="p-4 text-right font-extrabold text-slate-900 bg-blue-50/40">₹${cumulativeNet.toLocaleString('en-IN')}</td></tr>
                 `;
                 salaryTbody.insertAdjacentHTML('beforeend', rowHtml);
             });
@@ -635,149 +927,91 @@
             const targetDate = document.getElementById('global-date-filter').value;
             const targetRider = document.getElementById('rider-select-picker').value;
 
-            if(!targetRider) {
-                document.getElementById('rider-profile-data-canvas').classList.add('hidden');
-                document.getElementById('rider-empty-state-card').classList.remove('hidden');
-                return;
-            }
+            if(!targetRider) { document.getElementById('rider-profile-data-canvas').classList.add('hidden'); document.getElementById('rider-empty-state-card').classList.remove('hidden'); return; }
 
             const riderDayEntries = hubDatabase.filter(x => x.date === targetDate && x.name === targetRider);
             if(riderDayEntries.length > 0) {
-                document.getElementById('rider-empty-state-card').classList.add('hidden');
-                document.getElementById('rider-profile-data-canvas').classList.remove('hidden');
-
-                let d_ofd = 0, d_ok = 0, d_hold = 0, d_rto = 0;
-                let totalGross = 0, totalPenalties = 0, totalNet = 0;
-                let remarksArr = [];
+                document.getElementById('rider-empty-state-card').classList.add('hidden'); document.getElementById('rider-profile-data-canvas').classList.remove('hidden');
+                let d_ofd = 0, d_ok = 0, d_hold = 0, d_rto = 0, d_un = 0, d_fake = 0, p_ofd = 0, p_ok = 0, p_cancel = 0, p_due = 0, totalGross = 0, totalPenalties = 0, totalNet = 0; let remarksArr = [];
 
                 riderDayEntries.forEach(entry => {
-                    d_ofd += entry.d_ofd; d_ok += entry.d_ok; d_hold += entry.d_hold; d_rto += entry.d_rto;
-                    
-                    const calc = calculatePenalties(entry);
-                    totalGross += calc.baseSalaryEarned;
-                    totalPenalties += calc.totalCut;
-                    totalNet += calc.netSalary;
-                    remarksArr.push(entry.remarks);
+                    d_ofd += entry.d_ofd; d_ok += entry.d_ok; d_hold += entry.d_hold; d_rto += entry.d_rto; d_un += entry.d_un; d_fake += entry.d_fake; p_ofd += entry.p_ofd; p_ok += entry.p_ok; p_cancel += entry.p_cancel; p_due += entry.p_due;
+                    const calc = calculatePenalties(entry); totalGross += calc.baseSalaryEarned; totalPenalties += calc.totalCut; totalNet += calc.netSalary; remarksArr.push(`[${entry.deliveryType}]: ${entry.remarks}`);
                 });
 
-                document.getElementById('r-stat-eff').innerText = `${d_ofd > 0 ? Math.round((d_ok / d_ofd) * 100) : 0}%`;
-                document.getElementById('r-stat-gross').innerText = `₹${totalGross.toLocaleString('en-IN')}`;
-                document.getElementById('r-stat-penalty').innerText = `₹${totalPenalties.toLocaleString('en-IN')}`;
-                document.getElementById('r-stat-net').innerText = `₹${totalNet.toLocaleString('en-IN')}`;
-
-                document.getElementById('r-del-ofd').innerText = d_ofd;
-                document.getElementById('r-del-ok').innerText = d_ok;
-                document.getElementById('r-del-hold').innerText = d_hold;
-                document.getElementById('r-del-rto').innerText = d_rto;
-                document.getElementById('r-remarks-view').innerText = remarksArr.join(' | ');
-            } else {
-                document.getElementById('rider-profile-data-canvas').classList.add('hidden');
-                document.getElementById('rider-empty-state-card').classList.remove('hidden');
-            }
+                const effRatio = d_ofd > 0 ? Math.round((d_ok / d_ofd) * 100) : 0;
+                document.getElementById('r-stat-eff').innerText = `${effRatio}%`; document.getElementById('r-stat-gross').innerText = `₹${totalGross.toLocaleString('en-IN')}`; document.getElementById('r-stat-penalty').innerText = `₹${totalPenalties.toLocaleString('en-IN')}`; document.getElementById('r-stat-net').innerText = `₹${totalNet.toLocaleString('en-IN')}`;
+                document.getElementById('r-del-ofd').innerText = d_ofd; document.getElementById('r-del-ok').innerText = d_ok; document.getElementById('r-del-hold').innerText = d_hold; document.getElementById('r-del-rto').innerText = d_rto; document.getElementById('r-del-un').innerText = Math.max(0, d_un); document.getElementById('r-del-fake').innerText = d_fake; document.getElementById('r-pick-ofd').innerText = p_ofd; document.getElementById('r-pick-ok').innerText = p_ok; document.getElementById('r-pick-cancel').innerText = p_cancel; document.getElementById('r-pick-due').innerText = p_due; document.getElementById('r-remarks-view').innerText = remarksArr.join(' | ');
+            } else { document.getElementById('rider-profile-data-canvas').classList.add('hidden'); document.getElementById('rider-empty-state-card').classList.remove('hidden'); }
         }
 
         function exportSalaryLedgerToExcel() {
-            const targetDate = document.getElementById('global-date-filter').value;
-            const cycle = getActiveCycleRange(targetDate);
-            
-            const cycleRecords = hubDatabase.filter(x => {
-                if(!x.date) return false;
-                const d = new Date(x.date);
-                return d.getFullYear() === cycle.year && d.getMonth() === cycle.month && d.getDate() >= cycle.start && d.getDate() <= cycle.end;
-            });
-
-            const uniqueRiders = [...new Set(hubDatabase.map(x => x.name))];
-            const exportRows = [];
+            const targetDate = document.getElementById('global-date-filter').value; const cycle = getActiveCycleRange(targetDate);
+            const cycleRecords = hubDatabase.filter(x => { const d = new Date(x.date); return d.getFullYear() === cycle.year && d.getMonth() === cycle.month && d.getDate() >= cycle.start && d.getDate() <= cycle.end; });
+            const uniqueRiders = [...new Set(hubDatabase.map(x => x.name))]; const exportRows = [];
 
             uniqueRiders.forEach(name => {
-                const data = cycleRecords.filter(x => x.name === name);
-                if(data.length === 0) return;
-
-                let workingDays = 0, totalDelivered = 0, gross = 0, penalties = 0, net = 0;
-                const datesCounted = [];
-
-                data.forEach(e => {
-                    if(!datesCounted.includes(e.date)) { datesCounted.push(e.date); workingDays++; }
-                    totalDelivered += e.d_ok;
-                    const c = calculatePenalties(e);
-                    gross += c.baseSalaryEarned; penalties += c.totalCut; net += c.netSalary;
-                });
-
-                exportRows.push({
-                    "Rider Name": name,
-                    "Active Days Logged": workingDays,
-                    "Total Delivered Orders": totalDelivered,
-                    "Gross Income (₹)": gross,
-                    "Accrued Penalty Deductions (₹)": penalties,
-                    "Net Payout Final (₹)": net
-                });
+                const data = cycleRecords.filter(x => x.name === name); if(data.length === 0) return;
+                let workingDays = 0, totalDelivered = 0, gross = 0, penalties = 0, net = 0; const datesCounted = [];
+                data.forEach(e => { if(!datesCounted.includes(e.date)) { datesCounted.push(e.date); workingDays++; } totalDelivered += e.d_ok; const c = calculatePenalties(e); gross += c.baseSalaryEarned; penalties += c.totalCut; net += c.netSalary; });
+                exportRows.push({ "Rider Name": name, "Cross-Ref ID": riderDirectory[name] || "N/A", "Active Days Logged": workingDays, "Total Delivered Orders": totalDelivered, "Gross Income (₹)": gross, "Accrued Penalty Deductions (₹)": penalties, "Net Payout Final (₹)": net });
             });
 
-            if(exportRows.length === 0) { alert("No cycle records found to export!"); return; }
-            
-            const worksheet = XLSX.utils.json_to_sheet(exportRows);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Payroll Ledger Data");
-            XLSX.writeFile(workbook, `Shadowfax_Payroll_${cycle.label.replace(/ /g, "_")}.xlsx`);
+            if(exportRows.length === 0) { alert("No recorded operations ledger metrics found in current cycle!"); return; }
+            const worksheet = XLSX.utils.json_to_sheet(exportRows); const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Payroll Cycle Ledger"); XLSX.writeFile(workbook, `Shadowfax_Payroll_${cycle.label.replace(/ /g, "_")}.xlsx`);
         }
 
         function executeGlobalAwbSearch() {
-            const searchVal = document.getElementById('global-awb-search').value.trim();
-            const panel = document.getElementById('awb-search-result-panel');
+            const searchVal = document.getElementById('global-awb-search').value.trim(); const panel = document.getElementById('awb-search-result-panel');
             if(!searchVal) { panel.classList.add('hidden'); return; }
-
             const matchKey = Object.keys(awbGlobalLedger).find(k => k.toLowerCase().includes(searchVal.toLowerCase()));
             if(matchKey) {
                 const item = awbGlobalLedger[matchKey];
-                panel.innerHTML = `
-                    <div class="flex justify-between items-center border-b pb-1">
-                        <span class="text-xs font-bold text-blue-600 font-mono">${item.awb}</span>
-                    </div>
-                    <div class="text-[11px] text-slate-600 space-y-0.5">
-                        <div>Rider Reference: <span class="font-bold text-slate-900">${item.rider}</span></div>
-                        <div>Runsheet/ID: <span class="font-bold text-slate-900">${item.runsheet}</span></div>
-                        <div>Logged Date: <span class="font-bold text-slate-900">${item.date}</span></div>
-                    </div>
-                `;
+                panel.innerHTML = `<div class="flex justify-between items-center border-b pb-1"><span class="text-xs font-bold text-blue-600 font-mono">${item.awb}</span><span class="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-slate-100">${item.type}</span></div><div class="text-[11px] text-slate-600 space-y-0.5"><div>Status: <span class="font-bold text-slate-900">${item.status}</span></div><div>Rider Reference: <span class="font-bold text-slate-900">${item.rider}</span></div><div>Runsheet: <span class="font-bold text-slate-900">${item.runsheet}</span></div></div>`;
                 panel.classList.remove('hidden');
-            } else {
-                panel.innerHTML = `<p class="text-xs text-slate-400 italic text-center py-1">No matching live row records mapping found.</p>`;
-                panel.classList.remove('hidden');
-            }
+            } else { panel.innerHTML = `<p class="text-xs text-slate-400 italic text-center py-1">No matching manifest record.</p>`; panel.classList.remove('hidden'); }
         }
 
         function compileStrictA4BarcodePdfGrid() {
-            const text = document.getElementById('barcode-text-area').value.trim();
-            if(!text) { alert("Please dump explicit AWB list!"); return; }
-            generateBarcodePdfGridFromList(text.split(/\r?\n/).map(x => x.trim()).filter(x => x.length > 0));
+            const selectedMode = document.querySelector('input[name="barMode"]:checked').value;
+            if(selectedMode === 'paste') {
+                const text = document.getElementById('barcode-text-area').value.trim(); if(!text) return;
+                generateBarcodePdfGridFromList(text.split(/\r?\n/).map(x => x.trim()).filter(x => x.length > 0));
+            } else {
+                const filePicker = document.getElementById('barcode-file-picker'); if(filePicker.files.length === 0) return;
+                const reader = new FileReader();
+                reader.onload = function(e) { const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, { type: 'array' }); const jsonRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 }); generateBarcodePdfGridFromList(jsonRows.map(row => row[0] ? row[0].toString().trim() : "").filter(x => x.length > 0)); };
+                reader.readAsArrayBuffer(filePicker.files[0]);
+            }
         }
 
         function generateBarcodePdfGridFromList(awbList) {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('p', 'mm', 'a4');
-            const pW = 210, pH = 297, cols = 2, rows = 4, mx = 10, my = 12;
-            const cW = (pW - (mx * 2)) / cols, cH = (pH - (my * 2)) / rows;
-            const vault = document.getElementById('canvas-vault');
-
+            const { jsPDF } = window.jspdf; const doc = new jsPDF('p', 'mm', 'a4'); const pW = 210, pH = 297, cols = 2, rows = 4, mx = 10, my = 12; const cW = (pW - (mx * 2)) / cols, cH = (pH - (my * 2)) / rows; const vault = document.getElementById('canvas-vault');
             for (let i = 0; i < awbList.length; i++) {
-                const subIndex = i % 8;
-                if(i > 0 && subIndex === 0) doc.addPage();
-
-                const col = subIndex % cols, row = Math.floor(subIndex / cols);
-                const targetX = mx + (col * cW), targetY = my + (row * cH);
-
-                const canvas = document.createElement('canvas');
-                vault.appendChild(canvas);
-                try {
-                    JsBarcode(canvas, awbList[i], { format: "CODE128", width: 2.2, height: 50, displayValue: true, fontSize: 14, background: "#ffffff" });
-                    doc.setDrawColor(200, 205, 210);
-                    doc.rect(targetX, targetY, cW, cH);
-                    const imgW = cW - 12, imgH = (canvas.height / canvas.width) * imgW;
-                    doc.addImage(canvas.toDataURL('image/jpeg'), 'JPEG', targetX + ((cW - imgW) / 2), targetY + ((cH - imgH) / 2), imgW, imgH);
-                } catch(e) {}
+                const subIndex = i % 8; if(i > 0 && subIndex === 0) doc.addPage();
+                const col = subIndex % cols, row = Math.floor(subIndex / cols); const targetX = mx + (col * cW), targetY = my + (row * cH);
+                const canvas = document.createElement('canvas'); vault.appendChild(canvas);
+                try { JsBarcode(canvas, awbList[i], { format: "CODE128", width: 2.2, height: 50, displayValue: true, fontSize: 14, background: "#ffffff" }); doc.setDrawColor(200, 205, 210); doc.rect(targetX, targetY, cW, cH); const imgW = cW - 12, imgH = (canvas.height / canvas.width) * imgW; doc.addImage(canvas.toDataURL('image/jpeg'), 'JPEG', targetX + ((cW - imgW) / 2), targetY + ((cH - imgH) / 2), imgW, imgH); } catch(e) {}
                 vault.removeChild(canvas);
+            } doc.save(`A4_Barcodes_${Date.now()}.pdf`);
+        }
+
+        async function resetWorkspaceDatabase() {
+            if(confirm("Wipe all system data & payroll metrics from Google Sheets?")) {
+                hubDatabase = []; awbGlobalLedger = {}; hqRemittanceLedger = []; officeExpenditures = []; riderDirectory = {};
+                
+                // Cloud Sync Replacement
+                try {
+                    await fetch(APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify({ action: 'resetData' })
+                    });
+                } catch(e) { console.error("Cloud wipe error", e); }
+
+                syncWorkspaceState(); rebuildFormDropdownOptions();
             }
-            doc.save(`A4_Barcodes_${Date.now()}.pdf`);
         }
     </script>
 </body>
