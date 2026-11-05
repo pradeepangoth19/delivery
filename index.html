@@ -180,20 +180,66 @@ SF3322048315FPL" class="w-full border border-gray-300 rounded-lg p-3 text-sm foc
             updateUI();
         }
 
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.dataTransfer.dropEffect = "copy";
+            document.getElementById('drop-zone').classList.add('border-blue-500', 'bg-blue-50');
+        }
+
+        function handleDragLeave(event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const dropZone = document.getElementById('drop-zone');
+            if (!dropZone.contains(event.relatedTarget)) {
+                dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+            }
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const dropZone = document.getElementById('drop-zone');
+            dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+
+            const file = event.dataTransfer && event.dataTransfer.files
+                ? event.dataTransfer.files[0]
+                : null;
+
+            if (!file) return;
+
+            if (!file.name.toLowerCase().endsWith('.csv')) {
+                alert('Please drop a CSV file.');
+                return;
+            }
+
+            // Use the same upload flow as the file-picker input.
+            handleCSVFile(file);
+        }
+
         function handleCSVUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
+            handleCSVFile(file);
+        }
 
+        function handleCSVFile(file) {
             Papa.parse(file, {
                 header: true,
                 skipEmptyLines: true,
                 complete: function(results) {
-                    const keys = results.meta.fields.map(k => k.trim());
+                    const keys = (results.meta.fields || []).map(k => k.trim());
                     if (!keys.includes("AWB") || !keys.includes("Status")) {
                         alert("Error: CSV must contain 'AWB' and 'Status' columns!");
                         return;
                     }
                     processData(results.data);
+                },
+                error: function(error) {
+                    console.error("CSV parsing failed:", error);
+                    alert("Unable to read this CSV file. Please try another file.");
                 }
             });
         }
