@@ -1,385 +1,77 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full bg-slate-900">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AWB Barcode Workstation</title>
-    <!-- Tailwind CSS for modern styling -->
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <!-- PapaParse for CSV parsing -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <!-- JsBarcode for rendering barcodes -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
-    <!-- jsPDF for PDF generation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <title>LogiScan Express - Hub Portal</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans min-h-screen p-4 sm:p-8">
+<body class="h-full flex flex-col items-center justify-center p-4 text-slate-100">
 
-    <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-md p-6 sm:p-8">
+    <div class="max-w-xl w-full bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl p-8 space-y-8">
+        
         <!-- Header -->
-        <h2 class="text-2xl sm:text-3xl font-bold text-center text-[#1E3A8A] mb-4">📦 AWB Barcode Workstation</h2>
-        <hr class="border-gray-200 mb-6">
-
-        <!-- STEP 1: INPUT ZONE -->
-        <div class="mb-6">
-            <div class="flex rounded-lg bg-gray-100 p-1 mb-4">
-                <button id="tab-csv" onclick="switchInputMode('csv')" class="flex-1 py-2 text-sm font-semibold rounded-md bg-white shadow text-[#1E3A8A] transition">Upload Runsheet CSV</button>
-                <button id="tab-manual" onclick="switchInputMode('manual')" class="flex-1 py-2 text-sm font-semibold rounded-md text-gray-600 transition">Type/Paste AWBs Manually</button>
+        <div class="text-center space-y-2">
+            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 mb-2">
+                <i data-lucide="truck" class="w-8 h-8"></i>
             </div>
-
-            <!-- CSV Upload Input -->
-            <div id="section-csv" class="space-y-3">
-                <label id="drop-zone" 
-                       ondragover="handleDragOver(event)" 
-                       ondragleave="handleDragLeave(event)" 
-                       ondrop="handleDrop(event)"
-                       class="block w-full border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition">
-                    <span class="text-sm text-gray-600 pointer-events-none">Drag & drop your CSV runsheet here, or <span class="text-blue-600 underline">browse</span></span>
-                    <input type="file" id="csvFile" accept=".csv" class="hidden" onchange="handleCSVUpload(event)">
-                </label>
-            </div>
-
-            <!-- Manual Input -->
-            <div id="section-manual" class="hidden space-y-3">
-                <textarea id="manualData" rows="4" placeholder="SF3314570037FPL
-SF3322048315FPL" class="w-full border border-gray-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="handleManualInput()"></textarea>
-            </div>
+            <h1 class="text-2xl font-bold tracking-tight text-white">Logistics Hub Portal</h1>
+            <p class="text-xs text-slate-400">Select a tool below to process manifest data & generate barcode sheets</p>
         </div>
 
-        <!-- STEP 2: SUMMARY METRICS & SECTION TABLE -->
-        <div id="summary-section" class="hidden space-y-6">
-            <hr class="border-gray-200">
-            <h3 class="text-lg font-bold text-gray-800">📊 Runsheet Summary Metrics</h3>
+        <!-- Action Buttons -->
+        <div class="space-y-4">
             
-            <div class="grid grid-cols-3 gap-4 text-center">
-                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                    <p class="text-xs text-gray-500 font-medium">Total Assigned</p>
-                    <p id="metric-total" class="text-xl font-bold text-[#1E3A8A]">0</p>
+            <!-- Forward Downloaded Runsheet Button -->
+            <a href="logistics_manifest_parser_barcode_generator.html" 
+               class="group relative flex items-center justify-between p-5 bg-slate-700/50 hover:bg-indigo-600 border border-slate-600 hover:border-indigo-500 rounded-xl transition-all duration-200 shadow-md">
+                <div class="flex items-center space-x-4">
+                    <div class="p-3 rounded-lg bg-indigo-500/20 text-indigo-300 group-hover:bg-white/10 group-hover:text-white transition-colors">
+                        <i data-lucide="arrow-down-to-line" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-semibold text-white">Forward Downloaded Runsheet Maker</h2>
+                        <p class="text-xs text-slate-400 group-hover:text-indigo-100 transition-colors">Process fresh downloaded manifests & generate 2x4 barcodes</p>
+                    </div>
                 </div>
-                <div class="bg-green-50 p-4 rounded-lg border border-green-100">
-                    <p class="text-xs text-gray-500 font-medium">Delivered (Excluded)</p>
-                    <p id="metric-delivered" class="text-xl font-bold text-green-700">0</p>
-                </div>
-                <div class="bg-amber-50 p-4 rounded-lg border border-amber-100">
-                    <p class="text-xs text-gray-500 font-medium">Pending Active</p>
-                    <p id="metric-pending" class="text-xl font-bold text-amber-700">0</p>
-                </div>
-            </div>
+                <i data-lucide="chevron-right" class="w-5 h-5 text-slate-400 group-hover:text-white group-hover:translate-x-1 transition-all"></i>
+            </a>
 
-            <div>
-                <p class="text-sm font-semibold text-gray-700 mb-2">Section-wise Status Breakdown</p>
-                <div class="overflow-x-auto border border-gray-200 rounded-lg">
-                    <table class="w-full text-left text-sm">
-                        <thead class="bg-gray-100 text-gray-700 uppercase text-xs">
-                            <tr>
-                                <th class="p-3">Delivery Status</th>
-                                <th class="p-3">Shipment Count</th>
-                            </tr>
-                        </thead>
-                        <tbody id="status-table-body" class="divide-y divide-gray-200"></tbody>
-                    </table>
+            <!-- 1+ or RAD Runsheet Button -->
+            <a href="logistics_manifest_parser_barcode_generator.html" 
+               class="group relative flex items-center justify-between p-5 bg-slate-700/50 hover:bg-emerald-600 border border-slate-600 hover:border-emerald-500 rounded-xl transition-all duration-200 shadow-md">
+                <div class="flex items-center space-x-4">
+                    <div class="p-3 rounded-lg bg-emerald-500/20 text-emerald-300 group-hover:bg-white/10 group-hover:text-white transition-colors">
+                        <i data-lucide="rotate-ccw" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-semibold text-white">1+ or RAD Runsheet Maker</h2>
+                        <p class="text-xs text-slate-400 group-hover:text-emerald-100 transition-colors">Process re-attempt / RAD shipments & multi-attempt labels</p>
+                    </div>
                 </div>
-            </div>
+                <i data-lucide="chevron-right" class="w-5 h-5 text-slate-400 group-hover:text-white group-hover:translate-x-1 transition-all"></i>
+            </a>
+
         </div>
 
-        <!-- STEP 3: DISPLAY AND NAVIGATION ZONE -->
-        <div id="viewer-section" class="hidden space-y-6">
-            <hr class="border-gray-200">
-            
-            <div class="border border-gray-200 rounded-xl p-6 bg-white shadow-sm flex flex-col items-center">
-                <svg id="barcodeCanvas" class="max-w-full h-auto mb-3"></svg>
-                <p id="barcodeCaption" class="text-sm font-medium text-gray-600 mb-6 text-center"></p>
-
-                <div class="flex items-center justify-between w-full max-w-md">
-                    <button onclick="navigate(-1)" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium text-sm transition">⬅️ Backward</button>
-                    <span id="currentIndexLabel" class="text-sm font-bold text-gray-800">Item 1 of 1</span>
-                    <button onclick="navigate(1)" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium text-sm transition">Forward ➡️</button>
-                </div>
-            </div>
-
-            <!-- STEP 4: ACTION ZONE -->
-            <hr class="border-gray-200">
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Select PDF Layout Format:</label>
-                    <select id="pdfLayout" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="1">1 per page</option>
-                        <option value="4">4 per page (Vertical)</option>
-                        <option value="6">6 per page (Vertical)</option>
-                        <option value="8" selected>8 per page (2x4 Grid)</option>
-                    </select>
-                </div>
-
-                <button onclick="downloadPDF()" class="w-full bg-[#1E3A8A] hover:bg-blue-900 text-white font-semibold py-3 rounded-lg text-sm shadow transition flex items-center justify-center gap-2">
-                    📥 Download All Barcodes as PDF
-                </button>
-            </div>
+        <!-- Footer Info -->
+        <div class="pt-4 border-t border-slate-700/60 text-center">
+            <span class="text-[11px] font-mono text-slate-500 flex items-center justify-center gap-1.5">
+                <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400"></i> Local Hub Edition • Standard A4 2x4 Barcode Engine
+            </span>
         </div>
 
-        <!-- Empty State / Success State Messages -->
-        <div id="empty-state" class="text-center py-10 text-gray-400 text-sm">
-            💡 Awaiting input data above to compute layout counts and render live barcodes.
-        </div>
-        <div id="success-state" class="hidden text-center py-10 text-green-600 font-medium text-sm bg-green-50 rounded-lg border border-green-200 mt-4">
-            ✅ All assigned shipments on this runsheet have been completely 'Delivered'. No pending barcodes to generate!
-        </div>
     </div>
 
-    <!-- Application Script -->
     <script>
-        let currentInputMode = 'csv';
-        let finalAwbList = [];
-        let awbStatusMap = {};
-        let statusCounts = {};
-        let totalAssigned = 0;
-        let deliveredCount = 0;
-        let currentIndex = 0;
-
-        function switchInputMode(mode) {
-            currentInputMode = mode;
-            if (mode === 'csv') {
-                document.getElementById('tab-csv').className = "flex-1 py-2 text-sm font-semibold rounded-md bg-white shadow text-[#1E3A8A] transition";
-                document.getElementById('tab-manual').className = "flex-1 py-2 text-sm font-semibold rounded-md text-gray-600 transition";
-                document.getElementById('section-csv').classList.remove('hidden');
-                document.getElementById('section-manual').classList.add('hidden');
-            } else {
-                document.getElementById('tab-manual').className = "flex-1 py-2 text-sm font-semibold rounded-md bg-white shadow text-[#1E3A8A] transition";
-                document.getElementById('tab-csv').className = "flex-1 py-2 text-sm font-semibold rounded-md text-gray-600 transition";
-                document.getElementById('section-manual').classList.remove('hidden');
-                document.getElementById('section-csv').classList.add('hidden');
-                handleManualInput();
-            }
-        }
-
-        function processData(rawRows) {
-            finalAwbList = [];
-            awbStatusMap = {};
-            statusCounts = {};
-            totalAssigned = rawRows.length;
-            deliveredCount = 0;
-
-            rawRows.forEach(row => {
-                let status = (row["Status"] || "").trim();
-                let awb = (row["AWB"] || "").trim();
-                
-                if (!status && !awb) return;
-
-                // Status counting
-                let displayStatus = status || "Unknown";
-                statusCounts[displayStatus] = (statusCounts[displayStatus] || 0) + 1;
-
-                if (status.toLowerCase() === "delivered") {
-                    deliveredCount++;
-                } else if (awb && awb.toLowerCase() !== "nan") {
-                    finalAwbList.push(awb);
-                    awbStatusMap[awb] = displayStatus;
-                }
-            });
-
-            currentIndex = 0;
-            updateUI();
-        }
-
-        function handleDragOver(event) {
-            event.preventDefault();
-            event.stopPropagation();
-            event.dataTransfer.dropEffect = "copy";
-            document.getElementById('drop-zone').classList.add('border-blue-500', 'bg-blue-50');
-        }
-
-        function handleDragLeave(event) {
-            event.preventDefault();
-            event.stopPropagation();
-
-            const dropZone = document.getElementById('drop-zone');
-            if (!dropZone.contains(event.relatedTarget)) {
-                dropZone.classList.remove('border-blue-500', 'bg-blue-50');
-            }
-        }
-
-        function handleDrop(event) {
-            event.preventDefault();
-            event.stopPropagation();
-
-            const dropZone = document.getElementById('drop-zone');
-            dropZone.classList.remove('border-blue-500', 'bg-blue-50');
-
-            const file = event.dataTransfer && event.dataTransfer.files
-                ? event.dataTransfer.files[0]
-                : null;
-
-            if (!file) return;
-
-            if (!file.name.toLowerCase().endsWith('.csv')) {
-                alert('Please drop a CSV file.');
-                return;
-            }
-
-            // Use the same upload flow as the file-picker input.
-            handleCSVFile(file);
-        }
-
-        function handleCSVUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            handleCSVFile(file);
-        }
-
-        function handleCSVFile(file) {
-            Papa.parse(file, {
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    const keys = (results.meta.fields || []).map(k => k.trim());
-                    if (!keys.includes("AWB") || !keys.includes("Status")) {
-                        alert("Error: CSV must contain 'AWB' and 'Status' columns!");
-                        return;
-                    }
-                    processData(results.data);
-                },
-                error: function(error) {
-                    console.error("CSV parsing failed:", error);
-                    alert("Unable to read this CSV file. Please try another file.");
-                }
-            });
-        }
-
-        function handleManualInput() {
-            const text = document.getElementById('manualData').value;
-            const lines = text.split('\n');
-            const rows = [];
-            lines.forEach(line => {
-                let clean = line.trim();
-                if (clean) {
-                    rows.push({ AWB: clean, Status: "Manual Input" });
-                }
-            });
-            processData(rows);
-        }
-
-        function updateUI() {
-            const summarySec = document.getElementById('summary-section');
-            const viewerSec = document.getElementById('viewer-section');
-            const emptyState = document.getElementById('empty-state');
-            const successState = document.getElementById('success-state');
-
-            if (totalAssigned === 0) {
-                summarySec.classList.add('hidden');
-                viewerSec.classList.add('hidden');
-                successState.classList.add('hidden');
-                emptyState.classList.remove('hidden');
-                return;
-            }
-
-            emptyState.classList.add('hidden');
-            summarySec.classList.remove('hidden');
-
-            document.getElementById('metric-total').innerText = totalAssigned;
-            document.getElementById('metric-delivered').innerText = deliveredCount;
-            document.getElementById('metric-pending').innerText = finalAwbList.length;
-
-            // Render status breakdown table
-            let tableHtml = '';
-            for (let [status, count] of Object.entries(statusCounts)) {
-                tableHtml += `<tr class="hover:bg-gray-50"><td class="p-3">${status}</td><td class="p-3 font-semibold">${count}</td></tr>`;
-            }
-            document.getElementById('status-table-body').innerHTML = tableHtml;
-
-            if (finalAwbList.length === 0) {
-                viewerSec.classList.add('hidden');
-                successState.classList.remove('hidden');
-                return;
-            }
-
-            successState.classList.add('hidden');
-            viewerSec.classList.remove('hidden');
-
-            renderCurrentBarcode();
-        }
-
-        function renderCurrentBarcode() {
-            if (currentIndex >= finalAwbList.length) currentIndex = finalAwbList.length - 1;
-            if (currentIndex < 0) currentIndex = 0;
-
-            const currentAwb = finalAwbList[currentIndex];
-            const currentStatus = awbStatusMap[currentAwb] || "N/A";
-
-            try {
-                JsBarcode("#barcodeCanvas", currentAwb, {
-                    format: "CODE128",
-                    lineColor: "#000",
-                    width: 2,
-                    height: 80,
-                    displayValue: true
-                });
-            } catch (e) {
-                console.error(e);
-            }
-
-            document.getElementById('barcodeCaption').innerText = `AWB Code: ${currentAwb}  |  Current Status: ${currentStatus}`;
-            document.getElementById('currentIndexLabel').innerText = `Item ${currentIndex + 1} of ${finalAwbList.length}`;
-        }
-
-        function navigate(direction) {
-            currentIndex += direction;
-            if (currentIndex < 0) currentIndex = 0;
-            if (currentIndex >= finalAwbList.length) currentIndex = finalAwbList.length - 1;
-            renderCurrentBarcode();
-        }
-
-        async function downloadPDF() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
-            
-            const layoutType = parseInt(document.getElementById('pdfLayout').value);
-            
-            let cols = 1, rows = 1;
-            if (layoutType === 4) { cols = 1; rows = 4; }
-            else if (layoutType === 6) { cols = 1; rows = 6; }
-            else if (layoutType === 8) { cols = 2; rows = 4; }
-
-            const pageWidth = 215.9; // Letter width in mm
-            const pageHeight = 279.4; // Letter height in mm
-            const margin = 15;
-
-            const availW = pageWidth - (2 * margin);
-            const availH = pageHeight - (2 * margin);
-            const cellW = availW / cols;
-            const cellH = availH / rows;
-
-            // Generate an offscreen canvas to create barcode images for PDF
-            const canvas = document.createElement('canvas');
-
-            for (let i = 0; i < finalAwbList.length; i++) {
-                const pagePos = i % (cols * rows);
-                if (i > 0 && pagePos === 0) {
-                    doc.addPage();
-                }
-
-                const r = Math.floor(pagePos / cols);
-                const c = pagePos % cols;
-
-                const awb = finalAwbList[i];
-                
-                // Draw barcode onto temp canvas
-                try {
-                    JsBarcode(canvas, awb, { format: "CODE128", width: 2, height: 70, displayValue: true });
-                    const imgData = canvas.toDataURL("image/png");
-
-                    let imgW = cellW * 0.85;
-                    let imgH = cellH * 0.75;
-                    
-                    let x = margin + (c * cellW) + (cellW - imgW) / 2;
-                    let y = margin + (r * cellH) + (cellH - imgH) / 2;
-
-                    doc.addImage(imgData, 'PNG', x, y, imgW, imgH);
-                } catch (err) {
-                    console.error("Skipping corrupted AWB in PDF:", awb);
-                }
-            }
-
-            doc.save("runsheet_barcodes.pdf");
-        }
+        lucide.createIcons();
     </script>
 </body>
 </html>
