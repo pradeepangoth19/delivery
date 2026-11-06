@@ -14,6 +14,9 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
         
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
         @media print {
             .no-print { display: none !important; }
             .print-only { display: block !important; }
@@ -21,27 +24,29 @@
             body { background: white !important; margin: 0; padding: 0; }
             @page {
                 size: A4 portrait;
-                margin: 10mm;
+                margin: 5mm !important;
             }
             .print-grid {
                 display: grid !important;
                 grid-template-columns: repeat(2, 1fr) !important;
                 grid-template-rows: repeat(4, 1fr) !important;
-                gap: 8px !important;
+                gap: 5mm !important;
                 width: 100% !important;
-                height: 100% !important;
-                page-break-inside: avoid;
+                height: 275mm !important;
+                box-sizing: border-box !important;
             }
             .barcode-card {
-                break-inside: avoid;
-                page-break-inside: avoid;
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
                 border: 1px solid #64748b !important;
                 box-shadow: none !important;
-                padding: 10px !important;
-                height: 65mm !important;
+                padding: 6px 10px !important;
+                height: 62mm !important;
+                max-height: 62mm !important;
                 display: flex !important;
                 flex-direction: column !important;
                 justify-content: space-between !important;
+                box-sizing: border-box !important;
             }
         }
     </style>
