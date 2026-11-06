@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logistics Manifest Parser & Barcode Generator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- JsBarcode CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            .print-hide-attempt { display: none !important; }
+            body { background: white !important; margin: 0; padding: 0; }
+            @page {
+                size: A4 portrait;
+                margin: 10mm;
+            }
+            .print-grid {
+                display: grid !important;
+                grid-template-columns: repeat(2, 1fr) !important;
+                grid-template-rows: repeat(4, 1fr) !important;
+                gap: 8px !important;
+                width: 100% !important;
+                height: 100% !important;
+                page-break-inside: avoid;
+            }
+            .barcode-card {
+                break-inside: avoid;
+                page-break-inside: avoid;
+                border: 1px solid #64748b !important;
+                box-shadow: none !important;
+                padding: 10px !important;
+                height: 65mm !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: space-between !important;
+            }
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col text-slate-800">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-indigo-900 text-white shadow-md sticky top-0 z-50 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <i data-lucide="barcode" class="w-7 h-7 text-indigo-400"></i>
+                <h1 class="text-xl font-bold tracking-tight">LogiScan Express</h1>
+                <span class="bg-indigo-800 text-indigo-200 text-xs px-2.5 py-1 rounded-full font-medium">Manifest & Barcode Engine</span>
+            </div>
+            <div class="flex items-center space-x-3 text-sm">
+                <span id="header-status-badge" class="hidden sm:inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 mr-2 animate-pulse"></span> Ready
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- STEP 1: Input Section -->
+        <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden no-print">
+            <div class="p-5 border-b border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                        <span class="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold">1</span>
+                        Paste Raw Manifest Data
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Paste raw unstructured delivery text logs. Parser extracts all fields with zero data loss.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="btn-load-sample" class="px-3.5 py-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-1.5">
+                        <i data-lucide="file-text" class="w-4 h-4"></i> Load Sample Dataset
+                    </button>
+                    <button id="btn-clear" class="px-3.5 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors flex items-center gap-1.5">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i> Clear
+                    </button>
+                </div>
+            </div>
+            <div class="p-5">
+                <textarea id="raw-manifest-input" rows="8" class="w-full p-3 font-mono text-xs text-slate-800 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition" placeholder="Paste manifest lines here..."></textarea>
+                
+                <div class="mt-4 flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex items-center gap-4 text-xs text-slate-500">
+                        <span id="input-char-count"><strong class="text-slate-700">0</strong> characters</span>
+                        <span id="input-line-count"><strong class="text-slate-700">0</strong> lines</span>
+                    </div>
+                    <button id="btn-parse" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow transition-all flex items-center gap-2">
+                        <i data-lucide="cpu" class="w-4 h-4"></i> Parse & Extract Data
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- STEP 2 & 3 CONTAINER -->
+        <div id="processed-container" class="space-y-6 hidden no-print">
+
+            <!-- STEP 2: Cross-Tabulation Summary Table -->
+            <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                    <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                        <i data-lucide="table" class="w-4 h-4 text-indigo-600"></i>
+                        Parsed Summary Table (Clients vs. Attempt Breakdown)
+                    </h3>
+                    <span class="text-xs text-slate-500">Columns = Clients | Rows = Attempt metrics, Expand & Totals</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table id="summary-crosstab-table" class="w-full text-center text-xs border-collapse">
+                        <!-- Dynamic Crosstab Header & Body -->
+                    </table>
+                </div>
+            </section>
+
+            <!-- STEP 3: Dynamic Filters & Metrics Panel -->
+            <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                <div class="flex flex-wrap items-center justify-between border-b border-slate-100 pb-4 mb-4 gap-4">
+                    <div>
+                        <h2 class="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                            <span class="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold">2</span>
+                            Multi-Criteria Filters & Selection
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Filter by clients and attempt categories to isolate target shipments.</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5">
+                            <i data-lucide="filter" class="w-3.5 h-3.5"></i>
+                            Matches: <span id="metric-matched-count" class="text-indigo-900 font-bold">0</span> / <span id="metric-total-count">0</span>
+                        </span>
+                        <span class="bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5">
+                            <i data-lucide="barcode" class="w-3.5 h-3.5"></i>
+                            Barcodes Ready: <span id="metric-awb-count" class="text-emerald-900 font-bold">0</span>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Client Selector -->
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-bold uppercase tracking-wider text-slate-600">Client / Courier</label>
+                            <div class="space-x-1">
+                                <button id="btn-select-all-clients" class="text-[11px] text-indigo-600 hover:underline font-medium">Select All</button>
+                                <span class="text-slate-300">|</span>
+                                <button id="btn-deselect-all-clients" class="text-[11px] text-slate-500 hover:underline">Clear</button>
+                            </div>
+                        </div>
+                        <div id="filter-clients-container" class="max-h-40 overflow-y-auto p-2 bg-slate-50 border border-slate-200 rounded-lg space-y-1 text-xs">
+                            <!-- Dynamic Client Checkboxes -->
+                        </div>
+                    </div>
+
+                    <!-- Attempt Selector (0 or 1 or more) -->
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-bold uppercase tracking-wider text-slate-600">Attempt Category</label>
+                            <span class="text-[11px] text-slate-400">Select attempt filter</span>
+                        </div>
+                        <div id="filter-attempts-container" class="flex flex-col gap-2 p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                            <label class="flex items-center space-x-2.5 p-2 bg-white border border-slate-200 rounded-md cursor-pointer hover:bg-indigo-50/50 transition">
+                                <input type="checkbox" id="filter-attempt-0" value="0" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                                <span class="font-medium text-slate-700 text-xs">0 Attempts</span>
+                            </label>
+                            <label class="flex items-center space-x-2.5 p-2 bg-white border border-slate-200 rounded-md cursor-pointer hover:bg-indigo-50/50 transition">
+                                <input type="checkbox" id="filter-attempt-1plus" value="1plus" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                                <span class="font-medium text-slate-700 text-xs">1 or More Attempts</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Detailed Data Table View -->
+            <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                    <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                        <i data-lucide="list" class="w-4 h-4 text-indigo-600"></i>
+                        Shipment Records List
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <button id="btn-copy-awbs" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-medium rounded-md shadow-sm transition flex items-center gap-1.5">
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy Valid AWBs
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100/70 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
+                                <th class="p-3 w-12 text-center">#</th>
+                                <th class="p-3">Client</th>
+                                <th class="p-3">AWB Code</th>
+                                <th class="p-3 text-center">Attempt / Age</th>
+                                <th class="p-3">Address & Destination</th>
+                            </tr>
+                        </thead>
+                        <tbody id="summary-table-body" class="divide-y divide-slate-200 bg-white">
+                            <!-- Dynamic Rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- STEP 4: Barcode Generation & 2x4 A4 Print Grid -->
+        <section id="barcode-section" class="space-y-4 hidden">
+            <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-3 no-print">
+                <div>
+                    <h2 class="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                        <span class="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold">3</span>
+                        Generated Barcode Labels (2x4 Grid A4 Print Layout)
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Scannable Code 128 barcodes rendered specifically for filtered AWBs.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="btn-print" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow transition flex items-center gap-2">
+                        <i data-lucide="printer" class="w-4 h-4"></i> Print Barcode Labels (A4 PDF)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Print View Header (Only visible during print) -->
+            <div class="hidden print-only mb-2 text-center border-b pb-1">
+                <h1 class="text-lg font-bold">Delivery Manifest - Barcode Labels (A4 2x4 Grid)</h1>
+            </div>
+
+            <div id="barcode-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 print-grid">
+                <!-- Dynamic Barcode Cards -->
+            </div>
+        </section>
+
+        <!-- Notification Toast -->
+        <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 ease-in-out bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl border border-slate-800 flex items-center space-x-3 pointer-events-none">
+            <i id="toast-icon" data-lucide="check-circle" class="w-5 h-5 text-emerald-400"></i>
+            <span id="toast-msg" class="text-sm font-medium">Notification message</span>
+        </div>
+
+    </main>
+
+    <!-- Print Part Split Modal (No Print) -->
+    <div id="print-split-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 no-print">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-5 border border-slate-100">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                        <i data-lucide="printer" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">Print Barcode Batch Splitting</h3>
+                        <p class="text-xs text-slate-500">Split large barcode counts into printable parts</p>
+                    </div>
+                </div>
+                <button id="btn-close-print-modal" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div class="bg-indigo-50/60 border border-indigo-100 p-3 rounded-xl flex items-center justify-between text-xs text-indigo-900">
+                    <span>Total Barcodes Ready:</span>
+                    <span id="modal-total-barcodes" class="font-bold text-sm">0</span>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="text-xs font-semibold text-slate-700 block">In how many parts do you want to split this print job?</label>
+                    <div class="flex items-center gap-2">
+                        <input type="number" id="input-split-parts" min="1" max="20" value="1" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <button id="btn-recalculate-splits" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-lg shadow-sm transition shrink-0 flex items-center gap-1.5">
+                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Update
+                        </button>
+                    </div>
+                </div>
+
+                <div id="print-parts-container" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    <!-- Dynamic Part Buttons -->
+                </div>
+            </div>
+
+            <div class="pt-2 border-t border-slate-100 flex justify-end">
+                <button id="btn-cancel-print-modal" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        // Sample Raw Manifest Data from prompt
+        const SAMPLE_DATA = `2-59 Muthyallamma temple, Gopalapuram (V), Kamepally(M),Khammam(D).
+Contact Customer
+Snapdeal_marketplace
+SF4267002153SDM
+Unable to contact customer(not contactable)
+Urgent Delivery Shipment
+2
+/5
+6-11-2026 11:00 PM6-151/1 bandipadu komminepalli, Nearby shop mean road
+Contact Customer
+Kartrocket DS
+SF4319035543K
+Unable to contact customer(not contactable)
+Urgent Delivery Shipment
+2
+/7
+6-11-2026 11:00 PM2-87, bodrai center , Govindrala , Dt-khammam, Ct-khammam , St-TELANGANA, Pin-
+Contact Customer
+Swift Premium
+SF4021398951GOS
+Unable to contact customer(not contactable)
+Urgent Delivery Shipment
+3
+/9
+6-11-2026 11:00 PM2_5/1 chimmapudi near post office, Chimmapudi, Near Sri Lakshmi Narasimha Swamy Temple
+Contact Customer
+Flipkart MH Handover
+SF3742185054F
+Incentive Rs5
+Unable to contact customer(not contactable)
+Urgent Delivery Shipment
+3
+/11
+6-11-2026 11:00 PM1-12 c erlapudi Raghunath Palem Mandal Khammam district 1-12/c erlapudi Raghunath Palem mandlam
+Contact Customer
+Shiprocket Flat
+SF4325563274SRF
+Unable to contact customer(not contactable)
+Urgent Delivery Shipment
+3
+/7
+6-11-2026 11:00 PM1 104/A, Mucherla, Rangamma bazar
+Contact Customer
+FTPL
+SF4327452143FPL
+Unable to contact customer(not contactable)
+Urgent Delivery Shipment
+2
+/9
+6-11-2026 11:00 PMSathaniguda kamapalli Khammam
+Contact Customer
+Kartrocket
+SF4079010872KR
+Unable to contact customer(not contactable)
+Urgent Delivery Shipment
+3
+/9
+6-11-2026 11:00 PMHigh School, Khammam
+Contact Customer
+Shiprocket Dropship
+SF4069211499HIR
+Unable to contact customer(not contactable)
+Urgent Delivery Shipment
+4
+/9
+6-11-2026 11:00 PM1-104/A, Rangamma bazar, opposite ration shop, Mucherla, Mucherla
+Contact Customer
+Flipkart MH Handover
+SF3743596781F
+Unable to contact customer(not contactable)
+Urgent Delivery Shipment
+3
+/9
+6-11-2026 11:00 PM3 55kotapadu, Kotapadu vilej bccolani Raghunadapalem mandalam, kottapadu
+Contact Customer
+FTPL
+SF4333391165FPL
+Unable to contact customer(not contactable)
+Urgent Delivery Shipment
+1
+/2
+6-11-2026 11:00 PM3 163/2, BC colony, manchkonda,Raghunadapalem,BC colony
+Contact Customer
+FTPL
+SF4333566005FPL
+Unable to contact customer(not contactable)
+Urgent Delivery Shipment
+2
+/4
+6-11-2026 11:00 PM1 199, maddulapally,maddulapally
+Contact Customer
+FTPL
+SF4339826551FPL
+Unable to contact customer(not contactable)
+Urgent Delivery Shipment
+2
+/4
+6-11-2026 11:00 PM1 16/9, Kalyan
+Contact Customer
+FTPL
+SF4340150190FPL
+Unable to contact customer(not contactable)
+Urgent Delivery Shipment
+2
+/4
+6-11-2026 11:00 PM1-144, SC Colony nanigadu, Kondaigudem, Near Govindrala Bus Stand
+Contact Customer
+Flipkart MH Handover
+SF3744256813F
+Incentive Rs5
+Unable to contact customer(not contactable)
+Urgent Delivery Shipment
+2
+/6
+6-11-2026 11:00 PMv.r . banjara, bodrayi area
+Contact Customer
+FTPL
+-
+Urgent Delivery Shipment
+No of AWBs: 4
+-Expand
+3 89/1, Manchukonda. dabul bad room
+Contact Customer
+FTPL
+SF4362631673FPL
+Unable to contact customer(not contactable)
+Urgent Delivery Shipment
+3
+/6
+6-11-2026 11:00 PM5 152, Komminepalli, Kamepalle, Khammam District
+Contact Customer
+FTPL
+SF4362424925FPL
+Unable to contact customer(not contactable)
+Urgent Delivery Shipment
+2
+/4
+6-11-2026 11:00 PM1 30/1 ramalayam centre,jasthipalli, jasthipalli (village) kamepalli mandal , Khammam district
+Contact Customer
+FTPL
+-
+Urgent Delivery Shipment
+No of AWBs: 2
+-Expand
+5 52 basith nagar, Munsu Banjar, Kamepalle, Khammam District
+Contact Customer
+FTPL
+-
+Urgent Delivery Shipment
+No of AWBs: 3
+-Expand
+2 105, komminepally,CM Thanda
+Contact Customer
+FTPL
+SF4362695451FPL
+Unable to contact customer(not contactable)
+Urgent Delivery Shipment
+2
+/4
+6-11-2026 11:00 PM2 15, pandithapuram village Kamepalle mandal.Khammam District
+Contact Customer
+FTPL
+SF4362690035FPL
+Unable to contact customer(not contactable)
+Urgent Delivery Shipment
+2
+/4
+6-11-2026 11:00 PMNear Gram Panchayat Office, Jasthipalli, Jasthipalli, Kamepalle, Khammam District
+Contact Customer
+FTPL
+-
+Urgent Delivery Shipment
+No of AWBs: 2
+-Expand
+Khammam, Chathurya family restaurant,Manchu konda
+Contact Customer
+FTPL
+SF4368575272FPL
+Unable to contact customer(not contactable)
+Urgent Delivery Shipment
+2
+/4
+6-11-2026 11:00 PM2 112, govindrala (v), kamepalli ,(m) khammam (d)
+Contact Customer
+FTPL
+SF4369262446FPL
+Unable to contact customer(not contactable)
+Urgent Delivery Shipment
+2
+/4
+6-11-2026 11:00 PM51, vr Banjara
+Contact Customer
+FTPL
+-
+Urgent Delivery Shipment
+No of AWBs: 4
+-Expand
+2/12, Govindrala, Kamepalle, Khammam District
+Contact Customer
+Meesho Heavy
+SF4369109342MEL
+Unable to contact customer(not contactable)
+Urgent Delivery Shipment
+1
+/2
+6-11-2026 11:00 PM2/6, vadloru Centre,ramalaayam
+Contact Customer
+FTPL
+SF4376731870FPL
+Unable to contact customer(not contactable)
+Urgent Delivery Shipment
+2
+/4
+6-11-2026 11:00 PMBudidampadu. 1-131, Budidampadu
+Contact Customer
+Shadowfax 360 | Transpoship
+SF43257653120
+Incentive Rs10
+Vehicle Breakdown(not attempted)
+Urgent Delivery Shipment
+1
+/4
+6-11-2026 11:00 PM`;
+
+        // Application State
+        let parsedRecords = [];
+        let selectedClients = new Set();
+        let filterAttempt0 = true;
+        let filterAttempt1Plus = true;
+
+        // Known Client Names to ensure exact matching and zero "Unknown Client" bugs
+        const KNOWN_CLIENTS = [
+            "Snapdeal_marketplace", "Kartrocket DS", "Kartrocket", "Swift Premium", 
+            "Flipkart MH Handover", "Shiprocket Flat", "Shiprocket Dropship", 
+            "FTPL", "Meesho Heavy", "Shadowfax 360 | Transpoship"
+        ];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            initEventListeners();
+            updateCharLineCounts();
+        });
+
+        function initEventListeners() {
+            const textarea = document.getElementById('raw-manifest-input');
+            textarea.addEventListener('input', updateCharLineCounts);
+
+            document.getElementById('btn-load-sample').addEventListener('click', () => {
+                textarea.value = SAMPLE_DATA.trim();
+                updateCharLineCounts();
+                showToast("Sample manifest data loaded!", "info");
+            });
+
+            document.getElementById('btn-clear').addEventListener('click', () => {
+                textarea.value = '';
+                updateCharLineCounts();
+                document.getElementById('processed-container').classList.add('hidden');
+                document.getElementById('barcode-section').classList.add('hidden');
+                showToast("Cleared input text", "info");
+            });
+
+            document.getElementById('btn-parse').addEventListener('click', parseManifestData);
+            document.getElementById('btn-select-all-clients').addEventListener('click', selectAllClients);
+            document.getElementById('btn-deselect-all-clients').addEventListener('click', deselectAllClients);
+            document.getElementById('btn-copy-awbs').addEventListener('click', copyFilteredAWBs);
+            
+            document.getElementById('filter-attempt-0').addEventListener('change', (e) => {
+                filterAttempt0 = e.target.checked;
+                applyFiltersAndRender();
+            });
+            document.getElementById('filter-attempt-1plus').addEventListener('change', (e) => {
+                filterAttempt1Plus = e.target.checked;
+                applyFiltersAndRender();
+            });
+
+            // Open Split Print Modal
+            document.getElementById('btn-print').addEventListener('click', openPrintSplitModal);
+            document.getElementById('btn-close-print-modal').addEventListener('click', closePrintSplitModal);
+            document.getElementById('btn-cancel-print-modal').addEventListener('click', closePrintSplitModal);
+            document.getElementById('btn-recalculate-splits').addEventListener('click', generateSplitPrintButtons);
+            document.getElementById('input-split-parts').addEventListener('input', generateSplitPrintButtons);
+        }
+
+        function getFilteredValidRecords() {
+            return parsedRecords.filter(r => {
+                const clientMatch = selectedClients.has(r.client);
+                const isAttempt0 = r.attempt === 0;
+                const isAttempt1Plus = r.attempt >= 1;
+                let attemptMatch = false;
+                if (filterAttempt0 && isAttempt0) attemptMatch = true;
+                if (filterAttempt1Plus && isAttempt1Plus) attemptMatch = true;
+                return clientMatch && attemptMatch && r.awb && r.awb !== '-';
+            });
+        }
+
+        function openPrintSplitModal() {
+            const validRecords = getFilteredValidRecords();
+            if (validRecords.length === 0) {
+                showToast("No valid AWBs to print!", "warning");
+                return;
+            }
+            document.getElementById('modal-total-barcodes').textContent = validRecords.length;
+            document.getElementById('print-split-modal').classList.remove('hidden');
+            generateSplitPrintButtons();
+        }
+
+        function closePrintSplitModal() {
+            document.getElementById('print-split-modal').classList.add('hidden');
+            applyFiltersAndRender(); // Restore complete view
+        }
+
+        function generateSplitPrintButtons() {
+            const validRecords = getFilteredValidRecords();
+            const totalCount = validRecords.length;
+            const container = document.getElementById('print-parts-container');
+            container.innerHTML = '';
+
+            if (totalCount === 0) return;
+
+            let numParts = parseInt(document.getElementById('input-split-parts').value, 10) || 1;
+            if (numParts < 1) numParts = 1;
+            if (numParts > totalCount) numParts = totalCount;
+
+            const baseSize = Math.floor(totalCount / numParts);
+            const remainder = totalCount % numParts;
+
+            let startIndex = 0;
+            for (let i = 0; i < numParts; i++) {
+                // Distribute remainder among first few parts
+                const partSize = baseSize + (i < remainder ? 1 : 0);
+                const endIndex = startIndex + partSize;
+
+                const startNum = startIndex + 1;
+                const endNum = endIndex;
+
+                const partRecords = validRecords.slice(startIndex, endIndex);
+
+                const btn = document.createElement('button');
+                btn.className = "w-full p-3 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-xl flex items-center justify-between text-xs transition group";
+                btn.innerHTML = `
+                    <div class="flex items-center space-x-2.5">
+                        <span class="w-6 h-6 rounded-lg bg-indigo-600 text-white font-bold flex items-center justify-center text-[11px] group-hover:scale-105 transition">
+                            ${i + 1}
+                        </span>
+                        <div class="text-left">
+                            <div class="font-bold text-slate-800">Part ${i + 1} (Barcodes ${startNum} to ${endNum})</div>
+                            <div class="text-[11px] text-slate-500">${partRecords.length} labels in this batch</div>
+                        </div>
+                    </div>
+                    <span class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg text-xs flex items-center gap-1 shadow-sm">
+                        <i data-lucide="printer" class="w-3.5 h-3.5"></i> Print Part ${i + 1}
+                    </span>
+                `;
+
+                btn.addEventListener('click', () => {
+                    renderBarcodes(partRecords);
+                    setTimeout(() => {
+                        window.print();
+                    }, 200);
+                });
+
+                container.appendChild(btn);
+                startIndex = endIndex;
+            }
+
+            lucide.createIcons();
+        }
+
+        function updateCharLineCounts() {
+            const val = document.getElementById('raw-manifest-input').value;
+            document.getElementById('input-char-count').innerHTML = `<strong class="text-slate-700">${val.length.toLocaleString()}</strong> characters`;
+            const lines = val ? val.split('\n').length : 0;
+            document.getElementById('input-line-count').innerHTML = `<strong class="text-slate-700">${lines}</strong> lines`;
+        }
+
+        // --- Robust Zero-Loss Parser ---
+        function parseManifestData() {
+            const rawText = document.getElementById('raw-manifest-input').value.trim();
+            if (!rawText) {
+                showToast("Please paste manifest data first!", "warning");
+                return;
+            }
+
+            const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            parsedRecords = [];
+
+            let currentRecord = createEmptyRecord();
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+
+                const isTimestamp = /^\d{1,2}-\d{1,2}-\d{4}\s+\d{1,2}:\d{2}\s+(AM|PM)/i.test(line);
+                const isExpandMark = line === "-Expand" || line.toLowerCase() === "expand";
+
+                if (line === "Contact Customer") {
+                    currentRecord.action = line;
+                } 
+                else if (KNOWN_CLIENTS.some(c => c.toLowerCase() === line.toLowerCase())) {
+                    currentRecord.client = KNOWN_CLIENTS.find(c => c.toLowerCase() === line.toLowerCase());
+                } 
+                else if (/^SF\w+/i.test(line)) {
+                    currentRecord.awb = line.toUpperCase();
+                } 
+                else if (line === "-" && !currentRecord.awb) {
+                    currentRecord.awb = "-";
+                }
+                else if (line.startsWith("No of AWBs:")) {
+                    const match = line.match(/\d+/);
+                    currentRecord.noOfAwbs = match ? parseInt(match[0], 10) : 0;
+                    currentRecord.isExpandable = true;
+                } 
+                else if (line.startsWith("Incentive") || line.includes("Unable to contact") || line.includes("Breakdown")) {
+                    currentRecord.notes.push(line);
+                } 
+                else if (line.includes("Shipment") || line.includes("Delivery")) {
+                    currentRecord.priority = line;
+                } 
+                else if (/^\d+$/.test(line) && i + 1 < lines.length && lines[i+1].startsWith("/")) {
+                    currentRecord.attempt = parseInt(line, 10);
+                    const ageLine = lines[i+1];
+                    currentRecord.age = parseInt(ageLine.replace('/', '').trim(), 10) || 0;
+                    i++; 
+                } 
+                else if (/^\d+\s*\/\s*\d+$/.test(line)) {
+                    const parts = line.split('/');
+                    currentRecord.attempt = parseInt(parts[0].trim(), 10) || 0;
+                    currentRecord.age = parseInt(parts[1].trim(), 10) || 0;
+                } 
+                else if (isTimestamp) {
+                    currentRecord.cpt = line;
+                    parsedRecords.push(finalizeRecord(currentRecord));
+                    currentRecord = createEmptyRecord();
+                } 
+                else if (isExpandMark) {
+                    currentRecord.isExpandable = true;
+                    if (currentRecord.attempt === 0) {
+                        currentRecord.attempt = 1;
+                    }
+                    parsedRecords.push(finalizeRecord(currentRecord));
+                    currentRecord = createEmptyRecord();
+                } 
+                else {
+                    if (!currentRecord.address) {
+                        currentRecord.address = line;
+                    } else if (currentRecord.client === 'Direct Delivery' && !KNOWN_CLIENTS.some(c => c.toLowerCase() === line.toLowerCase())) {
+                        currentRecord.address += " " + line;
+                    }
+                }
+            }
+
+            // Push final record if valid and not already pushed
+            if (currentRecord.address || currentRecord.client !== 'Direct Delivery' || currentRecord.awb !== '-' || currentRecord.isExpandable) {
+                if (currentRecord.isExpandable && currentRecord.attempt === 0) {
+                    currentRecord.attempt = 1;
+                }
+                parsedRecords.push(finalizeRecord(currentRecord));
+            }
+
+            // Filter out lingering completely blank records
+            parsedRecords = parsedRecords.filter(r => r.address || r.awb !== '-' || r.isExpandable);
+
+            if (parsedRecords.length === 0) {
+                showToast("Could not parse any records. Check format.", "error");
+                return;
+            }
+
+            setupFilters();
+            document.getElementById('processed-container').classList.remove('hidden');
+            document.getElementById('barcode-section').classList.remove('hidden');
+
+            applyFiltersAndRender();
+            showToast(`Successfully parsed ${parsedRecords.length} records!`, "success");
+        }
+
+        function createEmptyRecord() {
+            return {
+                address: '',
+                action: 'Contact Customer',
+                client: 'Direct Delivery',
+                awb: '-',
+                notes: [],
+                priority: 'Urgent Delivery Shipment',
+                attempt: 0,
+                age: 0,
+                cpt: 'N/A',
+                isExpandable: false,
+                noOfAwbs: 1
+            };
+        }
+
+        function finalizeRecord(rec) {
+            if (rec.notes.length > 0) {
+                rec.notesStr = rec.notes.join(" | ");
+            } else {
+                rec.notesStr = "None";
+            }
+            if (!rec.client || rec.client === 'Direct Delivery') {
+                for (let c of KNOWN_CLIENTS) {
+                    if (rec.address.toLowerCase().includes(c.toLowerCase())) {
+                        rec.client = c;
+                        break;
+                    }
+                }
+            }
+            return rec;
+        }
+
+        // --- Filter Setup ---
+        function setupFilters() {
+            const clientsSet = new Set();
+            parsedRecords.forEach(r => {
+                if (r.client) clientsSet.add(r.client);
+            });
+
+            selectedClients = new Set(clientsSet);
+
+            const clientContainer = document.getElementById('filter-clients-container');
+            clientContainer.innerHTML = '';
+            Array.from(clientsSet).sort().forEach(client => {
+                const id = `client-cb-${client.replace(/\s+/g, '-')}`;
+                const label = document.createElement('label');
+                label.className = "flex items-center space-x-2 py-0.5 cursor-pointer hover:text-indigo-600";
+                label.innerHTML = `
+                    <input type="checkbox" id="${id}" value="${client}" checked class="client-cb rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5">
+                    <span class="truncate" title="${client}">${client}</span>
+                `;
+                clientContainer.appendChild(label);
+
+                label.querySelector('input').addEventListener('change', (e) => {
+                    if (e.target.checked) selectedClients.add(client);
+                    else selectedClients.delete(client);
+                    applyFiltersAndRender();
+                });
+            });
+        }
+
+        function selectAllClients() {
+            document.querySelectorAll('.client-cb').forEach(cb => {
+                cb.checked = true;
+                selectedClients.add(cb.value);
+            });
+            applyFiltersAndRender();
+        }
+
+        function deselectAllClients() {
+            document.querySelectorAll('.client-cb').forEach(cb => {
+                cb.checked = false;
+            });
+            selectedClients.clear();
+            applyFiltersAndRender();
+        }
+
+        // --- Filter & Render Engine ---
+        function applyFiltersAndRender() {
+            const filtered = parsedRecords.filter(r => {
+                const clientMatch = selectedClients.has(r.client);
+                
+                const isAttempt0 = r.attempt === 0;
+                const isAttempt1Plus = r.attempt >= 1;
+
+                let attemptMatch = false;
+                if (filterAttempt0 && isAttempt0) attemptMatch = true;
+                if (filterAttempt1Plus && isAttempt1Plus) attemptMatch = true;
+
+                return clientMatch && attemptMatch;
+            });
+
+            document.getElementById('metric-matched-count').textContent = filtered.length;
+            document.getElementById('metric-total-count').textContent = parsedRecords.length;
+            document.getElementById('metric-awb-count').textContent = filtered.filter(r => r.awb && r.awb !== '-').length;
+
+            renderCrossTabSummary();
+            renderTable(filtered);
+            renderBarcodes(filtered);
+        }
+
+        // --- Step 2: Cross-Tabulation Summary Table ---
+        // Columns = Clients | Rows = Attempt metrics, Expand & Totals
+        function renderCrossTabSummary() {
+            const table = document.getElementById('summary-crosstab-table');
+            
+            // Gather all unique clients present in parsedRecords
+            const clientsList = Array.from(new Set(parsedRecords.map(r => r.client))).sort();
+
+            // Build Header (Columns = Clients)
+            let html = `<thead><tr class="bg-slate-100 border-b border-slate-200 text-slate-700 font-semibold">`;
+            html += `<th class="p-2.5 text-left pl-4">Attempt Breakdown</th>`;
+            clientsList.forEach(client => {
+                html += `<th class="p-2.5 text-center">${client}</th>`;
+            });
+            html += `<th class="p-2.5 text-center bg-indigo-50 text-indigo-900 border-l border-slate-200">Total</th>`;
+            html += `</tr></thead><tbody>`;
+
+            // Row 1: 0 Attempts (Standard single AWBs with attempt == 0)
+            let totalAttempt0 = 0;
+            html += `<tr class="border-b border-slate-100 hover:bg-slate-50"><td class="p-2.5 text-left font-medium text-slate-700 pl-4">0 Attempts</td>`;
+            clientsList.forEach(client => {
+                const count = parsedRecords.filter(r => r.client === client && !r.isExpandable && r.attempt === 0).length;
+                totalAttempt0 += count;
+                html += `<td class="p-2.5 text-slate-600">${count}</td>`;
+            });
+            html += `<td class="p-2.5 bg-indigo-50/50 font-bold text-indigo-900 border-l border-slate-100">${totalAttempt0}</td></tr>`;
+
+            // Row 2: 1 or More Attempts (Standard single AWBs with attempt >= 1)
+            let totalAttempt1Plus = 0;
+            html += `<tr class="border-b border-slate-100 hover:bg-slate-50"><td class="p-2.5 text-left font-medium text-slate-700 pl-4">1 or More Attempts</td>`;
+            clientsList.forEach(client => {
+                const count = parsedRecords.filter(r => r.client === client && !r.isExpandable && r.attempt >= 1).length;
+                totalAttempt1Plus += count;
+                html += `<td class="p-2.5 text-slate-600">${count}</td>`;
+            });
+            html += `<td class="p-2.5 bg-indigo-50/50 font-bold text-indigo-900 border-l border-slate-100">${totalAttempt1Plus}</td></tr>`;
+
+            // Row 3: Expand (Sum of No of AWBs for each client)
+            let grandExpandAwbs = 0;
+            html += `<tr class="border-b border-slate-100 bg-amber-50/40 hover:bg-amber-50/70"><td class="p-2.5 text-left font-semibold text-amber-900 pl-4">Expand (No of AWBs)</td>`;
+            clientsList.forEach(client => {
+                const expandRecords = parsedRecords.filter(r => r.client === client && r.isExpandable);
+                const sumAwbs = expandRecords.reduce((sum, r) => sum + (r.noOfAwbs || 0), 0);
+                grandExpandAwbs += sumAwbs;
+                html += `<td class="p-2.5 font-bold text-amber-800">${sumAwbs}</td>`;
+            });
+            html += `<td class="p-2.5 bg-amber-100 font-bold text-amber-900 border-l border-slate-200">${grandExpandAwbs}</td></tr>`;
+
+            // Row 4: Grand Total (0 Attempts + 1+ Attempts + Expand AWB Sum)
+            html += `<tr class="bg-slate-50 font-bold text-slate-900 border-t-2 border-slate-200"><td class="p-2.5 text-left pl-4">Grand Total</td>`;
+            let totalSum = 0;
+            clientsList.forEach(client => {
+                const standardCount = parsedRecords.filter(r => r.client === client && !r.isExpandable).length;
+                const expandAwbs = parsedRecords.filter(r => r.client === client && r.isExpandable)
+                                                .reduce((sum, r) => sum + (r.noOfAwbs || 0), 0);
+                const clientGrandTotal = standardCount + expandAwbs;
+                totalSum += clientGrandTotal;
+                html += `<td class="p-2.5 text-indigo-900">${clientGrandTotal}</td>`;
+            });
+            html += `<td class="p-2.5 bg-indigo-100 text-indigo-900 border-l border-slate-200">${totalSum}</td></tr>`;
+
+            html += `</tbody>`;
+            table.innerHTML = html;
+        }
+
+        function renderTable(records) {
+            const tbody = document.getElementById('summary-table-body');
+            tbody.innerHTML = '';
+
+            if (records.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center py-8 text-slate-400">
+                            <i data-lucide="filter-x" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+                            No records match the selected filter criteria.
+                        </td>
+                    </tr>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            records.forEach((rec, idx) => {
+                const tr = document.createElement('tr');
+                tr.className = rec.isExpandable ? "bg-amber-50/60 hover:bg-amber-100/50 transition" : "hover:bg-slate-50 transition";
+                
+                const awbDisplay = rec.awb !== '-' 
+                    ? `<span class="font-mono font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">${rec.awb}</span>`
+                    : `<span class="inline-flex items-center text-amber-700 bg-amber-100 border border-amber-300 text-[10px] px-2 py-0.5 rounded font-medium">
+                        <i data-lucide="layers" class="w-3 h-3 mr-1"></i> ${rec.noOfAwbs} AWBs (Expand)
+                       </span>`;
+
+                tr.innerHTML = `
+                    <td class="p-3 text-center text-slate-400 font-mono text-[11px]">${idx + 1}</td>
+                    <td class="p-3 font-medium text-slate-900">${rec.client}</td>
+                    <td class="p-3">${awbDisplay}</td>
+                    <td class="p-3 text-center">
+                        <span class="bg-slate-100 border border-slate-200 text-slate-700 px-2 py-0.5 rounded font-mono text-[11px]">
+                            ${rec.attempt} / ${rec.age}
+                        </span>
+                    </td>
+                    <td class="p-3 max-w-md text-slate-600 truncate" title="${rec.address}">${rec.address}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            lucide.createIcons();
+        }
+
+        function renderBarcodes(records) {
+            const grid = document.getElementById('barcode-grid');
+            grid.innerHTML = '';
+
+            const validRecords = records.filter(r => r.awb && r.awb !== '-');
+
+            if (validRecords.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-10 text-center bg-white rounded-xl border border-dashed border-slate-300 text-slate-400">
+                        <i data-lucide="barcode-off" class="w-10 h-10 mx-auto mb-2 opacity-40"></i>
+                        <p class="text-sm">No valid AWB codes to render barcodes for current selection.</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            validRecords.forEach((rec, idx) => {
+                const card = document.createElement('div');
+                card.className = "barcode-card bg-white rounded-xl shadow-sm border border-slate-200 p-3 flex flex-col justify-between hover:shadow-md transition space-y-2";
+                
+                const svgId = `barcode-svg-${idx}`;
+
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-1 mb-1">
+                            <span class="text-[10px] font-bold text-indigo-900 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded truncate max-w-[70%]">
+                                ${rec.client}
+                            </span>
+                            <span class="print-hide-attempt text-[10px] font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
+                                Att: ${rec.attempt} | Age: ${rec.age}d
+                            </span>
+                        </div>
+                        <div class="text-[11px] text-slate-700 line-clamp-2 font-medium leading-tight" title="${rec.address}">
+                            <i data-lucide="map-pin" class="w-3 h-3 inline mr-0.5 text-slate-400"></i> ${rec.address}
+                        </div>
+                    </div>
+
+                    <!-- Barcode Container -->
+                    <div class="bg-slate-50 border border-slate-100 rounded p-1 text-center flex flex-col items-center justify-center my-auto">
+                        <svg id="${svgId}" class="max-w-full h-auto" style="max-height: 45px;"></svg>
+                    </div>
+
+                    <div class="flex items-center justify-between text-[10px] text-slate-400 border-t border-slate-100 pt-1">
+                        <span class="truncate max-w-[60%]">${rec.priority}</span>
+                        <span>CPT: ${rec.cpt}</span>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+
+                try {
+                    JsBarcode(`#${svgId}`, rec.awb, {
+                        format: "CODE128",
+                        lineColor: "#0f172a",
+                        width: 1.5,
+                        height: 40,
+                        displayValue: true,
+                        fontSize: 11,
+                        fontOptions: "bold",
+                        font: "Inter",
+                        margin: 2
+                    });
+                } catch (e) {
+                    console.error("JsBarcode error:", e);
+                }
+            });
+
+            lucide.createIcons();
+        }
+
+        function copyFilteredAWBs() {
+            const filtered = parsedRecords.filter(r => {
+                const clientMatch = selectedClients.has(r.client);
+                const isAttempt0 = r.attempt === 0;
+                const isAttempt1Plus = r.attempt >= 1;
+                let attemptMatch = (filterAttempt0 && isAttempt0) || (filterAttempt1Plus && isAttempt1Plus);
+                return clientMatch && attemptMatch && r.awb && r.awb !== '-';
+            });
+
+            if (filtered.length === 0) {
+                showToast("No valid AWBs to copy!", "warning");
+                return;
+            }
+
+            const awbList = filtered.map(r => r.awb).join('\n');
+            const textarea = document.createElement('textarea');
+            textarea.value = awbList;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+
+            showToast(`Copied ${filtered.length} AWB codes to clipboard!`, "success");
+        }
+
+        function showToast(message, type = "info") {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-msg');
+            const toastIcon = document.getElementById('toast-icon');
+
+            toastMsg.textContent = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
