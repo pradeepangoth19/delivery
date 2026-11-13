@@ -536,74 +536,127 @@
         }
 
         // --- Exact data.json Parser Engine (With Order Flattening) ---
-        function parseManifestData() {
-            const rawText = document.getElementById('raw-manifest-input').value.trim();
-            if (!rawText) {
-                showToast("Please paste JSON manifest data first!", "warning");
-                return;
-            }
+        async function parseManifestData() {
+                    const rawText = document.getElementById('raw-manifest-input').value.trim();
+                    if (!rawText) {
+                        showToast("Please paste JSON manifest data first!", "warning");
+                        return;
+                    }
 
-            try {
-                const jsonDoc = JSON.parse(rawText);
+                    try {
+                        const jsonDoc = JSON.parse(rawText);
+                        const rawArray = jsonDoc.customer_delivery_data || (Array.isArray(jsonDoc) ? jsonDoc : null);
 
-                // Extract delivery array from customer_delivery_data property or top-level array
-                const rawArray = jsonDoc.customer_delivery_data || (Array.isArray(jsonDoc) ? jsonDoc : null);
+                        if (!Array.isArray(rawArray)) {
+                            throw new Error("JSON structure must contain 'customer_delivery_data' array.");
+                        }
 
-                if (!Array.isArray(rawArray)) {
-                    throw new Error("JSON structure must contain 'customer_delivery_data' array.");
-                }
+                        parsedRecords = [];
 
-                parsedRecords = [];
+                        rawArray.forEach(item => {
+                            const ordersList = Array.isArray(item.orders) && item.orders.length > 0 ? item.orders : [item];
 
-                rawArray.forEach(item => {
-                    // Flatten orders array if present, otherwise fallback to item itself
-                    const ordersList = Array.isArray(item.orders) && item.orders.length > 0 ? item.orders : [item];
+                            ordersList.forEach(ord => {
+                                const cust = ord.customer_details || item.customer_details || {};
+                                const clientName = ord.client || item.client || 'Direct Delivery';
+                                const awbCode = ord.awb_number || item.awb_number || '-';
+                                const addressStr = cust.customer_address || ord.address || item.address || '';
+                                const customerNameVal = cust.customer_name || 'N/A';
+                                const customerCityVal = cust.customer_city || '';
+                                const customerStateVal = cust.customer_state || '';
+                                const pincodeVal = cust.pincode || '';
+                                const clientOrderIdVal = ord.client_order_id || item.client_order_id || '';
+                                const attemptVal = typeof ord.attempt_number === 'number' ? ord.attempt_number : (typeof item.attempt_number === 'number' ? item.attempt_number : 0);
+                                const ageVal = typeof ord.ageing === 'number' ? ord.ageing : (typeof item.ageing === 'number' ? item.ageing : 0);
+                                const cptVal = ord.scanned_time || item.scanned_time || 'N/A';
+                                const priorityVal = ord.shipment_escalation_priority || item.shipment_escalation_priority || 'Urgent Delivery Shipment';
+                                const notesVal = ord.new_order_status || item.new_order_status || 'None';
+                                const paymentModeVal = ord.payment_mode || item.payment_mode || ((ord.cod_amount || item.cod_amount || 0) > 0 ? 'COD' : 'Prepaid');
+                                const codAmountVal = ord.cod_amount || item.cod_amount || 0;
 
-                    ordersList.forEach(ord => {
-                        const cust = ord.customer_details || item.customer_details || {};
-                        const clientName = ord.client || item.client || 'Direct Delivery';
-                        const awbCode = ord.awb_number || item.awb_number || '-';
-                        const addressStr = cust.customer_address || ord.address || item.address || '';
-                        const attemptVal = typeof ord.attempt_number === 'number' ? ord.attempt_number : (typeof item.attempt_number === 'number' ? item.attempt_number : 0);
-                        const ageVal = typeof ord.ageing === 'number' ? ord.ageing : (typeof item.ageing === 'number' ? item.ageing : 0);
-                        const cptVal = ord.scanned_time || item.scanned_time || 'N/A';
-                        const priorityVal = ord.shipment_escalation_priority || item.shipment_escalation_priority || 'Urgent Delivery Shipment';
-                        const notesVal = ord.new_order_status || item.new_order_status || 'None';
-                        const paymentModeVal = ord.payment_mode || item.payment_mode || ((ord.cod_amount || item.cod_amount || 0) > 0 ? 'COD' : 'Prepaid');
-                        const codAmountVal = ord.cod_amount || item.cod_amount || 0;
-
-                        parsedRecords.push({
-                            client: clientName,
-                            awb: awbCode,
-                            address: addressStr,
-                            attempt: attemptVal,
-                            age: ageVal,
-                            cpt: cptVal,
-                            priority: priorityVal,
-                            notesStr: notesVal,
-                            paymentMode: paymentModeVal,
-                            codAmount: codAmountVal
+                                parsedRecords.push({
+                                    client: clientName,
+                                    awb: awbCode,
+                                    address: addressStr,
+                                    customerName: customerNameVal,
+                                    customerCity: customerCityVal,
+                                    customerState: customerStateVal,
+                                    pincode: pincodeVal,
+                                    clientOrderId: clientOrderIdVal,
+                                    attempt: attemptVal,
+                                    age: ageVal,
+                                    cpt: cptVal,
+                                    priority: priorityVal,
+                                    notesStr: notesVal,
+                                    paymentMode: paymentModeVal,
+                                    codAmount: codAmountVal
+                                });
+                            });
                         });
-                    });
-                });
 
-                if (parsedRecords.length === 0) {
-                    showToast("No records found inside customer_delivery_data.", "error");
-                    return;
+                        if (parsedRecords.length === 0) {
+                            showToast("No records found inside customer_delivery_data.", "error");
+                            return;
+                        }
+
+                        setupFilters();
+                        document.getElementById('processed-container').classList.remove('hidden');
+                        document.getElementById('barcode-section').classList.remove('hidden');
+
+                        applyFiltersAndRender();
+                        showToast(`Successfully parsed ${parsedRecords.length} records!`, "success");
+
+                        await syncPhase2ToSheetDB();
+
+                    } catch (e) {
+                        showToast("JSON Syntax Error: " + e.message, "error");
+                        console.error("JSON Parse Error:", e);
+                    }
                 }
 
-                setupFilters();
-                document.getElementById('processed-container').classList.remove('hidden');
-                document.getElementById('barcode-section').classList.remove('hidden');
+                async function syncPhase2ToSheetDB() {
+                    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyi01AK2Ndvc9tszXdZDwQBHxbDBm1YZSbCDmDgpKpHeDGvmcuQmkPDB-LTLUJB-BtrPA/exec';
 
-                applyFiltersAndRender();
-                showToast(`Successfully parsed ${parsedRecords.length} records!`, "success");
+                    const phase2Records = parsedRecords.filter(r => {
+                        const isCod = String(r.paymentMode || '').toUpperCase() === 'COD';
+                        const amount = Number(r.codAmount) || 0;
+                        return isCod && amount > 350;
+                    });
 
-            } catch (e) {
-                showToast("JSON Syntax Error: " + e.message, "error");
-                console.error("JSON Parse Error:", e);
-            }
-        }
+                    if (phase2Records.length === 0) return;
+
+                    const rowsToUpload = phase2Records.map(r => ({
+                        awb_number: r.awb,
+                        customer_name: r.customerName,
+                        customer_address: r.address,
+                        customer_city: r.customerCity,
+                        customer_state: r.customerState,
+                        pincode: r.pincode,
+                        client_order_id: r.clientOrderId,
+                        client: r.client
+                    }));
+
+                    try {
+                        const response = await fetch(APPS_SCRIPT_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                            body: JSON.stringify({ data: rowsToUpload })
+                        });
+
+                        if (!response.ok) throw new Error("Failed to save data to Google Sheets");
+
+                        // Fetch all rows via GET to get the exact cumulative count
+                        const getRes = await fetch(APPS_SCRIPT_URL);
+                        const allRows = await getRes.json();
+                        const totalCumulative = Array.isArray(allRows) ? allRows.length : rowsToUpload.length;
+
+                        showToast(`Phase 2 Saved: ${rowsToUpload.length} new records! Total in DB: ${totalCumulative}`, "success");
+
+                    } catch (error) {
+                        console.error("Cloud Sync Error:", error);
+                        showToast("Cloud Sync Error: " + error.message, "error");
+                    }
+                }
 
         function setupFilters() {
             // Client Filters
