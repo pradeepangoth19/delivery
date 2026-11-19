@@ -620,7 +620,7 @@
                     const phase2Records = parsedRecords.filter(r => {
                         const isCod = String(r.paymentMode || '').toUpperCase() === 'COD';
                         const amount = Number(r.codAmount) || 0;
-                        return isCod && amount > 350;
+                        return isCod && amount > 200;
                     });
 
                     if (phase2Records.length === 0) return;
